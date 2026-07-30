@@ -179,8 +179,16 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+  background: linear-gradient(-45deg, #1e40af, #2563eb, #3b82f6, #6366f1, #60a5fa);
+  background-size: 400% 400%;
+  animation: gradientBG 12s ease infinite;
   padding: 20px;
+}
+
+@keyframes gradientBG {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 #loginPage::before {
@@ -206,7 +214,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
 /* 页面切换动画 */
 #loginPage, #mainPage {
-  transition: opacity 0.5s ease;
+  transition: opacity 0.35s ease;
 }
 
 @keyframes loginFadeIn {
