@@ -464,9 +464,6 @@
 
   // ========== 加载数据 ==========
   function loadAllData() {
-    // 有确认对话框打开时跳过刷新，防止 DOM 重建导致确认状态丢失
-    if (hasActiveConfirmations()) return;
-
     var now = Date.now();
     if (now - lastRefreshTime < MIN_REFRESH_INTERVAL) return;
     lastRefreshTime = now;
@@ -522,10 +519,29 @@
     lastUsersSignature = '';
   }
 
-  // 检查页面中是否存在激活的确认对话框
-  function hasActiveConfirmations() {
-    var confirms = document.querySelectorAll('.confirm-action:not(.hidden)');
-    return confirms.length > 0;
+  // 保存容器内所有展开的确认框 ID（用于 DOM 重建后恢复）
+  function saveConfirmationStates(container) {
+    var ids = [];
+    var confirms = container.querySelectorAll('.confirm-action:not(.hidden)');
+    for (var i = 0; i < confirms.length; i++) {
+      if (confirms[i].id) ids.push(confirms[i].id);
+    }
+    return ids;
+  }
+
+  // DOM 重建后恢复确认框的展开状态
+  function restoreConfirmationStates(ids) {
+    for (var i = 0; i < ids.length; i++) {
+      var el = document.getElementById(ids[i]);
+      if (el) {
+        el.classList.remove('hidden');
+        // 对应的操作按钮需要隐藏
+        var btn = el.previousElementSibling;
+        if (btn && (btn.tagName === 'BUTTON' || btn.classList.contains('btn'))) {
+          btn.classList.add('hidden');
+        }
+      }
+    }
   }
 
   function renderAll() {
@@ -906,7 +922,9 @@
     var dates = Object.keys(dateGroups).sort().reverse();
 
     if (dates.length === 0) {
+      var emptyConfirms = saveConfirmationStates(container);
       container.innerHTML = '<div class="empty-state">暂无订单</div>';
+      restoreConfirmationStates(emptyConfirms);
       return;
     }
 
@@ -967,7 +985,10 @@
       html += '</div>';
     }
 
+    // 保存确认框状态，DOM 重建后恢复
+    var confirmIds = saveConfirmationStates(container);
     container.innerHTML = html;
+    restoreConfirmationStates(confirmIds);
 
     // 恢复滚动位置
     if (mainContent) {
@@ -1479,7 +1500,9 @@
       html += '</span>';
       html += '</div>';
     }
+    var userConfirmIds = saveConfirmationStates(container);
     container.innerHTML = html;
+    restoreConfirmationStates(userConfirmIds);
   }
 
   // 用户管理事件委托
