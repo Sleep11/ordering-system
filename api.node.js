@@ -181,13 +181,17 @@ async function handleGetSettings() {
     var orderLocked = await kv.get('settings_order_locked');
     var lunchLocked = await kv.get('settings_lunch_locked');
     var dinnerLocked = await kv.get('settings_dinner_locked');
+    var blindLunchPrice = await kv.get('settings_blind_lunch_price');
+    var blindDinnerPrice = await kv.get('settings_blind_dinner_price');
     return sendJSON({
       success: true,
       data: {
         settings: {
           orderLocked: orderLocked === 'true',
           lunchLocked: lunchLocked === 'true',
-          dinnerLocked: dinnerLocked === 'true'
+          dinnerLocked: dinnerLocked === 'true',
+          blindLunchPrice: blindLunchPrice ? parseFloat(blindLunchPrice) : 11,
+          blindDinnerPrice: blindDinnerPrice ? parseFloat(blindDinnerPrice) : 12
         }
       }
     });
@@ -213,6 +217,15 @@ async function handleUpdateSettings() {
 
     if (!key) {
       return sendJSON({ success: false, message: '设置 key 不能为空' }, 400);
+    }
+
+    // 盲盒价格校验
+    if (key === 'settings_blind_lunch_price' || key === 'settings_blind_dinner_price') {
+      var priceValue = parseFloat(value);
+      if (isNaN(priceValue) || priceValue < 0.5 || priceValue > 200) {
+        return sendJSON({ success: false, message: '价格必须在 0.5 ~ 200 之间' }, 400);
+      }
+      value = String(Math.round(priceValue * 100) / 100);
     }
 
     kv.set(key, String(value));
@@ -642,7 +655,11 @@ async function handleCreateOrder() {
     
     // 确定价格
     if (itemType === 'blind') {
-      price = mealType === 'lunch' ? 11 : 12;
+      var blindLunchPriceRaw = await kv.get('settings_blind_lunch_price');
+      var blindDinnerPriceRaw = await kv.get('settings_blind_dinner_price');
+      var blindLunchPrice = blindLunchPriceRaw ? parseFloat(blindLunchPriceRaw) : 11;
+      var blindDinnerPrice = blindDinnerPriceRaw ? parseFloat(blindDinnerPriceRaw) : 12;
+      price = mealType === 'lunch' ? blindLunchPrice : blindDinnerPrice;
       itemName = '盲盒';
     } else {
       price = parseFloat(price);

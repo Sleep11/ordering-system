@@ -9,6 +9,8 @@
   var allOrders = [];
   var expandedDates = {};
   var settings = { orderLocked: false, lunchLocked: false, dinnerLocked: false };
+  var blindLunchPrice = 11;
+  var blindDinnerPrice = 12;
   var refreshTimer = null;
   var focusRefreshBound = false;
   var isBatchSubmitting = false;
@@ -254,12 +256,28 @@
   // ========== 设置管理 ==========
   var settingsLoaded = false;
 
+  // 获取盲盒价格
+  function getBlindPrice(mealType) {
+    return mealType === 'lunch' ? blindLunchPrice : blindDinnerPrice;
+  }
+
+  // 格式化盲盒价格显示文本
+  function getBlindPriceText() {
+    return '午餐盲盒：' + blindLunchPrice.toFixed(2) + '元 | 晚餐盲盒：' + blindDinnerPrice.toFixed(2) + '元';
+  }
+
   function loadSettings() {
     return apiRequest('POST', 'get-settings', {}).then(function(result) {
       if (result.success && result.data && result.data.settings) {
         settings = result.data.settings;
+        blindLunchPrice = result.data.settings.blindLunchPrice || 11;
+        blindDinnerPrice = result.data.settings.blindDinnerPrice || 12;
         settingsLoaded = true;
         updateSettingsUI();
+        // 价格变化后更新批量订餐表格中的盲盒价格
+        if (currentUser && currentUser.role === 'admin') {
+          populateBatchOrderTable();
+        }
       }
     }).catch(function() {
       // 静默失败
@@ -279,6 +297,15 @@
     if (dinnerLockToggle) {
       dinnerLockToggle.checked = settings.dinnerLocked === true;
     }
+    var blindLunchInput = document.getElementById('blindLunchPrice');
+    if (blindLunchInput) blindLunchInput.value = blindLunchPrice;
+    var blindDinnerInput = document.getElementById('blindDinnerPrice');
+    if (blindDinnerInput) blindDinnerInput.value = blindDinnerPrice;
+    // 更新价格提示文本
+    var blindPriceInfo = document.querySelector('#blindPriceInfo .price-info');
+    if (blindPriceInfo) blindPriceInfo.textContent = getBlindPriceText();
+    var editBlindInfo = document.querySelector('#editBlindPriceInfo .price-info');
+    if (editBlindInfo) editBlindInfo.textContent = getBlindPriceText();
   }
 
   function updateSetting(key, value) {
@@ -586,7 +613,7 @@
   function populateBatchOrderTable() {
     var container = document.getElementById('batchOrderRows');
     var mealType = document.getElementById('mealType').value;
-    var blindPrice = mealType === 'lunch' ? 11 : 12;
+    var blindPrice = getBlindPrice(mealType);
     var drafts = collectBatchOrderDrafts();
     var fragment = document.createDocumentFragment();
 
@@ -671,7 +698,7 @@
       var dishInput = row.querySelector('.dish-name-input');
       var priceInput = row.querySelector('.price-input');
       var mealType = document.getElementById('mealType').value;
-      var blindPrice = mealType === 'lunch' ? 11 : 12;
+      var blindPrice = getBlindPrice(mealType);
       dishInput.disabled = isBlind;
       dishInput.required = !isBlind;
       priceInput.disabled = isBlind;
@@ -685,7 +712,7 @@
   // 餐别切换时更新盲盒价格
   document.getElementById('mealType').addEventListener('change', function() {
     var mealType = this.value;
-    var blindPrice = mealType === 'lunch' ? 11 : 12;
+    var blindPrice = getBlindPrice(mealType);
     var rows = document.querySelectorAll('.batch-order-row');
     for (var i = 0; i < rows.length; i++) {
       var row = rows[i];
@@ -696,7 +723,7 @@
       }
     }
     document.getElementById('blindPriceInfo').querySelector('.price-info').textContent =
-      '午餐盲盒：11元 | 晚餐盲盒：12元';
+      getBlindPriceText();
   });
 
   // 点击人员行切换复选框
@@ -769,9 +796,9 @@
       editItemPrice.value = '';
     }
 
-    var blindPrice = order.mealType === 'lunch' ? 11 : 12;
+    var blindPrice = getBlindPrice(order.mealType);
     document.getElementById('editBlindPriceInfo').querySelector('.price-info').textContent =
-      '午餐盲盒：11元 | 晚餐盲盒：12元';
+      getBlindPriceText();
 
     document.getElementById('editOrderError').textContent = '';
     document.getElementById('editOrderModal').classList.remove('hidden');
@@ -791,9 +818,9 @@
 
   // 编辑弹窗餐别切换时更新盲盒价格提示
   document.getElementById('editMealType').addEventListener('change', function() {
-    var blindPrice = this.value === 'lunch' ? 11 : 12;
+    var blindPrice = getBlindPrice(this.value);
     document.getElementById('editBlindPriceInfo').querySelector('.price-info').textContent =
-      '午餐盲盒：11元 | 晚餐盲盒：12元';
+      getBlindPriceText();
     // 如果当前是盲盒模式，同步更新价格
     var itemType = document.getElementById('editItemType').value;
     if (itemType === 'blind') {
@@ -1654,6 +1681,51 @@
   window.addEventListener('scroll', updateActiveSidebarLink);
 
   // ========== 锁定开关 ==========
+  // 盲盒价格修改
+  document.getElementById('blindLunchPrice').addEventListener('change', function() {
+    var newPrice = parseFloat(this.value);
+    if (isNaN(newPrice) || newPrice < 0.5 || newPrice > 200) {
+      this.value = blindLunchPrice;
+      showToast('价格需在 0.5 ~ 200 之间', 'error');
+      return;
+    }
+    updateSetting('settings_blind_lunch_price', newPrice).then(function(result) {
+      if (result.success) {
+        blindLunchPrice = newPrice;
+        updateSettingsUI();
+        populateBatchOrderTable();
+      } else {
+        document.getElementById('blindLunchPrice').value = blindLunchPrice;
+        showToast(result.message || '操作失败', 'error');
+      }
+    }).catch(function() {
+      document.getElementById('blindLunchPrice').value = blindLunchPrice;
+      showToast('网络错误，设置未保存', 'error');
+    });
+  });
+
+  document.getElementById('blindDinnerPrice').addEventListener('change', function() {
+    var newPrice = parseFloat(this.value);
+    if (isNaN(newPrice) || newPrice < 0.5 || newPrice > 200) {
+      this.value = blindDinnerPrice;
+      showToast('价格需在 0.5 ~ 200 之间', 'error');
+      return;
+    }
+    updateSetting('settings_blind_dinner_price', newPrice).then(function(result) {
+      if (result.success) {
+        blindDinnerPrice = newPrice;
+        updateSettingsUI();
+        populateBatchOrderTable();
+      } else {
+        document.getElementById('blindDinnerPrice').value = blindDinnerPrice;
+        showToast(result.message || '操作失败', 'error');
+      }
+    }).catch(function() {
+      document.getElementById('blindDinnerPrice').value = blindDinnerPrice;
+      showToast('网络错误，设置未保存', 'error');
+    });
+  });
+
   document.getElementById('lockToggle').addEventListener('change', function() {
     var newValue = this.checked;
     updateSetting('settings_order_locked', newValue).then(function(result) {

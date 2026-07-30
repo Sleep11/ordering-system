@@ -78,6 +78,8 @@
 | `settings_order_locked` | `"true"/"false"` | 全局锁定开关 |
 | `settings_lunch_locked` | `"true"/"false"` | 午餐锁定开关 |
 | `settings_dinner_locked` | `"true"/"false"` | 晚餐锁定开关 |
+| `settings_blind_lunch_price` | 数字字符串 | 午餐盲盒价格，默认 `"11"` |
+| `settings_blind_dinner_price` | 数字字符串 | 晚餐盲盒价格，默认 `"12"` |
 | `login_fails_{userId}` | 数字字符串 | 登录失败计数 |
 | `login_lock_{userId}` | JSON 对象 | 登录锁定信息，含 lockUntil |
 
@@ -114,10 +116,10 @@
 
 ### 餐品定价规则
 
-| 餐别 | 盲盒价格 | 自定义价格 |
-|------|----------|-----------|
-| 午餐 (lunch) | ¥11.00 | 用户自填 |
-| 晚餐 (dinner) | ¥12.00 | 用户自填 |
+| 餐别 | 盲盒价格（管理员可调） | 自定义价格 |
+|------|---------------------|-----------|
+| 午餐 (lunch) | 默认 ¥11.00（侧边栏可修改） | 用户自填 |
+| 晚餐 (dinner) | 默认 ¥12.00（侧边栏可修改） | 用户自填 |
 
 ---
 
@@ -395,15 +397,7 @@ deno -Ar https://host.retiehe.com/cli watch
 - **午餐/晚餐分别锁定**: 侧边栏 → "禁止午餐/晚餐点餐"（阻止提交）
 
 ### 修改盲盒价格
-编辑 `app.js` 中的定价逻辑：
-```js
-// handleCreateOrder 中 (api.node.js):
-if (itemType === 'blind') {
-  price = mealType === 'lunch' ? 11 : 12;  // ← 修改此处
-  itemName = '盲盒';
-}
-```
-以及 `app.js` 中的显示文本和价格同步逻辑。
+管理员登录 → 侧边栏"盲盒价格设置" → 修改午餐或晚餐盲盒价格（0.5~200 元）→ 按 Enter 或失焦生效。价格立即在点餐登记和批量提交中同步。
 
 ### 添加新餐品类型
 1. `index.html`: 在 `itemType` select 中添加新 `<option>`
@@ -422,6 +416,9 @@ var ORDERS_REFRESH_INTERVAL = 8000; // 订单刷新间隔 8秒
 ## 变更记录
 
 ### v2.1 (当前版本)
+- ✅ 新增：管理员可自定义盲盒固定价格（侧边栏设置，实时生效）
+- ✅ 美化：下拉框统一自定义箭头样式
+- ✅ 美化：侧边栏导航图标统一使用主题蓝色
 - ✅ 修复：用户数据损坏时自动重建默认用户（不再永久卡死）
 - ✅ 修复：修改密码/重置密码后旧会话立即失效（安全加固）
 - ✅ 修复：价格显示 NaN 保护
