@@ -703,7 +703,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .collapsible-toggle.collapsed .collapse-arrow {
-  transform: rotate(-90deg);
+  transform: rotate(180deg);
 }
 
 .collapsible-body {
