@@ -97,6 +97,14 @@
             </svg>
             订单列表
           </a>
+          <a href="#section-report" class="sidebar-link" data-section="report">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 20V10"/>
+              <path d="M12 20V4"/>
+              <path d="M6 20v-6"/>
+            </svg>
+            周月报统计
+          </a>
           <a href="#section-admin" class="sidebar-link" data-section="admin">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
@@ -288,7 +296,7 @@
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                 <polyline points="14 2 14 8 20 8"/>
               </svg>
-              最近七天订单
+              本月订单
             </h2>
             <svg class="collapse-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="6 9 12 15 18 9"/>
@@ -296,6 +304,29 @@
           </div>
           <div class="panel__body collapsible-body">
             <div id="ordersContainer"></div>
+          </div>
+        </section>
+
+        <!-- 周月报统计 -->
+        <section id="section-report" class="panel">
+          <div class="panel__header">
+            <h2 class="panel__title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 20V10"/>
+                <path d="M12 20V4"/>
+                <path d="M6 20v-6"/>
+              </svg>
+              周月报统计
+            </h2>
+            <div class="report-tabs">
+              <button class="report-tab active" id="reportTabWeek">本周</button>
+              <button class="report-tab" id="reportTabMonth">本月</button>
+            </div>
+          </div>
+          <div class="panel__body" id="reportBody">
+            <div id="reportContainer">
+              <div class="empty-state">点击上方选项卡加载数据</div>
+            </div>
           </div>
         </section>
 

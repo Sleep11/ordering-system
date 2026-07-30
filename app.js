@@ -466,7 +466,6 @@
     // 设置日期默认值
     var dateInput = document.getElementById('orderDate');
     dateInput.value = getChinaDate();
-    dateInput.max = getChinaDate();
 
     // 根据当前时间自动选择餐别：14:00 前午餐，之后晚餐
     var nowHour = new Date().getHours();
@@ -486,6 +485,16 @@
     if (currentUser.role === 'admin') {
       allUsers = getDefaultSafeUsers();
       renderAdminUsersArea();
+      // 用户管理默认折叠
+      var adminToggle = document.querySelector('.collapsible-toggle[data-section="admin"]');
+      var adminBody = document.querySelector('#section-admin .collapsible-body');
+      if (adminToggle && adminBody && !adminToggle.classList.contains('collapsed')) {
+        adminToggle.classList.add('collapsed');
+        adminBody.classList.add('collapsed');
+        var state = loadCollapsedState();
+        state['admin'] = true;
+        saveCollapsedState(state);
+      }
     }
 
     // 加载数据
@@ -1693,6 +1702,10 @@
         if (el) {
           el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
+        // 切换到报表时自动加载
+        if (section === 'report' && typeof loadReport === 'function') {
+          loadReport(currentReportType);
+        }
         // 高亮激活
         for (var j = 0; j < sidebarLinks.length; j++) {
           sidebarLinks[j].classList.remove('active');
@@ -1710,6 +1723,7 @@
   function updateActiveSidebarLink() {
     if (window.innerWidth <= 768) return;
     var sections = ['section-order', 'section-stats', 'section-orders', 'section-admin'];
+    sections.push('section-report');
     var scrollPos = window.scrollY + 100;
 
     for (var i = sections.length - 1; i >= 0; i--) {
@@ -1847,6 +1861,76 @@
       refreshTimer = null;
     }
   }
+
+  // ========== 周月报统计 ==========
+  var currentReportType = 'week';
+
+  function loadReport(type) {
+    type = type || currentReportType;
+    currentReportType = type;
+    var reportContainer = document.getElementById('reportContainer');
+    if (reportContainer) reportContainer.innerHTML = '<div class="empty-state">加载中...</div>';
+    apiRequest('POST', 'get-report', { type: type }).then(function(result) {
+      if (result.success) {
+        renderReport(result.data);
+      } else {
+        if (reportContainer) reportContainer.innerHTML = '<div class="empty-state">加载失败</div>';
+      }
+    }).catch(function() {
+      if (reportContainer) reportContainer.innerHTML = '<div class="empty-state">网络错误</div>';
+    });
+  }
+
+  function renderReport(data) {
+    var container = document.getElementById('reportContainer');
+    if (!container) return;
+    var s = data.summary;
+    var rangeText = data.range.from + ' ~ ' + data.range.to;
+
+    // 更新 tab 激活状态
+    var weekTab = document.getElementById('reportTabWeek');
+    var monthTab = document.getElementById('reportTabMonth');
+    if (weekTab && monthTab) {
+      weekTab.classList.toggle('active', data.type === 'week');
+      monthTab.classList.toggle('active', data.type === 'month');
+    }
+
+    var html = '';
+    html += '<div class="report-range">' + rangeText + '</div>';
+
+    // 汇总卡片
+    html += '<div class="report-cards">';
+    html += '<div class="report-card"><div class="report-card-value">' + s.totalOrders + '</div><div class="report-card-label">订单总数</div></div>';
+    html += '<div class="report-card"><div class="report-card-value">' + s.lunchCount + ' / ' + s.dinnerCount + '</div><div class="report-card-label">午餐 / 晚餐</div></div>';
+    html += '<div class="report-card"><div class="report-card-value">' + formatPrice(s.totalAmount) + '</div><div class="report-card-label">总金额</div></div>';
+    html += '<div class="report-card report-card--success"><div class="report-card-value">' + formatPrice(s.paidAmount) + '</div><div class="report-card-label">已付金额（' + s.paidCount + '单）</div></div>';
+    html += '<div class="report-card report-card--danger"><div class="report-card-value">' + formatPrice(s.unpaidAmount) + '</div><div class="report-card-label">未付金额（' + s.unpaidCount + '单）</div></div>';
+    html += '</div>';
+
+    // 人均明细表
+    if (data.perPerson.length > 0) {
+      html += '<div class="report-table-wrap"><table class="report-table"><thead><tr>';
+      html += '<th>姓名</th><th>订单数</th><th>已付</th><th>金额</th>';
+      html += '</tr></thead><tbody>';
+      for (var i = 0; i < data.perPerson.length; i++) {
+        var p = data.perPerson[i];
+        html += '<tr>';
+        html += '<td>' + escapeHtml(p.name) + '</td>';
+        html += '<td>' + p.count + '</td>';
+        html += '<td>' + p.paid + '/' + p.count + '</td>';
+        html += '<td>' + formatPrice(p.amount) + '</td>';
+        html += '</tr>';
+      }
+      html += '</tbody></table></div>';
+    } else {
+      html += '<div class="empty-state">暂无数据</div>';
+    }
+
+    container.innerHTML = html;
+  }
+
+  document.getElementById('reportTabWeek').addEventListener('click', function() { loadReport('week'); });
+  document.getElementById('reportTabMonth').addEventListener('click', function() { loadReport('month'); });
 
   // ========== 启动 ==========
   tryAutoLogin();

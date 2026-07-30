@@ -941,6 +941,117 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 /* ============ 订单列表 ============ */
+
+/* ============ 周月报 ============ */
+.report-tabs {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.report-tab {
+  padding: 5px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.report-tab:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.report-tab.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.report-range {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.report-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.report-card {
+  background: var(--panel-soft);
+  border: 1px solid var(--line-light);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  text-align: center;
+}
+
+.report-card--success { background: var(--success-soft); border-color: rgba(22, 163, 74, 0.15); }
+.report-card--danger { background: var(--danger-soft); border-color: rgba(220, 38, 38, 0.12); }
+
+.report-card-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.report-card--success .report-card-value { color: var(--success); }
+.report-card--danger .report-card-value { color: var(--danger); }
+
+.report-card-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.report-table-wrap {
+  overflow-x: auto;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.report-table th,
+.report-table td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--line-light);
+}
+
+.report-table th {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--panel-soft);
+}
+
+.report-table td {
+  color: var(--text);
+}
+
+.report-table tbody tr:hover {
+  background: var(--primary-soft);
+}
+
+.report-table td:last-child {
+  font-weight: 600;
+}
+
+/* ============ 订单列表 ============ */
 .date-group {
   border: 1px solid var(--line-light);
   border-radius: var(--radius);

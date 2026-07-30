@@ -10,15 +10,33 @@ function getChinaDate() {
 }
 
 // 获取最近七天的日期列表
-function getLastSevenDays() {
+// 获取当前月份的日期范围
+function getMonthDateRange() {
   var today = new Date();
   var chinaTime = new Date(today.getTime() + 8 * 60 * 60 * 1000);
-  var dates = [];
-  for (var i = 0; i < 7; i++) {
-    var date = new Date(chinaTime.getTime() - i * 24 * 60 * 60 * 1000);
-    dates.push(date.toISOString().split('T')[0]);
-  }
-  return dates;
+  var year = chinaTime.getUTCFullYear();
+  var month = chinaTime.getUTCMonth();
+  var firstDay = new Date(Date.UTC(year, month, 1));
+  var lastDay = new Date(Date.UTC(year, month + 1, 0));
+  return {
+    from: firstDay.toISOString().split('T')[0],
+    to: lastDay.toISOString().split('T')[0]
+  };
+}
+
+// 获取指定周的日期范围（周一到周日）
+function getWeekDateRange(offsetWeek) {
+  offsetWeek = offsetWeek || 0;
+  var now = new Date();
+  var chinaTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+  var day = chinaTime.getUTCDay();
+  var mondayOffset = day === 0 ? -6 : 1 - day;
+  var monday = new Date(chinaTime.getTime() + (mondayOffset + offsetWeek * 7) * 24 * 60 * 60 * 1000);
+  var sunday = new Date(monday.getTime() + 6 * 24 * 60 * 60 * 1000);
+  return {
+    from: monday.toISOString().split('T')[0],
+    to: sunday.toISOString().split('T')[0]
+  };
 }
 
 async function readUsersWithRetry(maxAttempts) {
@@ -33,21 +51,9 @@ async function readUsersWithRetry(maxAttempts) {
 }
 
 // 清理过期订单
+// 已禁用：不再自动删除历史订单
 async function cleanupExpiredOrders() {
-  var validDates = getLastSevenDays();
-  var allKeys = await kv.listKeys();
-  for (var i = 0; i < allKeys.length; i++) {
-    var key = allKeys[i];
-    if (key.indexOf('order_') === 0) {
-      var parts = key.split('_');
-      if (parts.length >= 2) {
-        var date = parts[1];
-        if (validDates.indexOf(date) === -1) {
-          kv.deleteKey(key);
-        }
-      }
-    }
-  }
+  return;
 }
 
 // 初始化默认用户
@@ -170,6 +176,8 @@ async function handleRequest() {
     return handleGetSettings();
   } else if (action === 'update-settings' && method === 'POST') {
     return handleUpdateSettings();
+  } else if (action === 'get-report') {
+    return handleGetReport();
   } else {
     return sendJSON({ success: false, message: '未知操作: ' + action }, 400);
   }
@@ -580,14 +588,17 @@ async function handleGetOrders() {
       return sendJSON({ success: false, message: '未登录' }, 401);
     }
     
-    // 清理过期订单（仅在获取订单时执行，避免每次请求都扫描）
-    await cleanupExpiredOrders();
-    
-    var validDates = getLastSevenDays();
-    // 构建日期快速查找集合
+    // 获取当前月份的日期范围
+    var monthRange = getMonthDateRange();
+    var fromParts = monthRange.from.split('-');
+    var toParts = monthRange.to.split('-');
     var dateSet = {};
-    for (var d = 0; d < validDates.length; d++) {
-      dateSet[validDates[d]] = true;
+    // UTC 日期迭代，避免时区偏移
+    var d = new Date(Date.UTC(parseInt(fromParts[0]), parseInt(fromParts[1]) - 1, parseInt(fromParts[2])));
+    var endD = new Date(Date.UTC(parseInt(toParts[0]), parseInt(toParts[1]) - 1, parseInt(toParts[2])));
+    while (d <= endD) {
+      dateSet[d.toISOString().split('T')[0]] = true;
+      d.setUTCDate(d.getUTCDate() + 1);
     }
     
     var orders = [];
@@ -642,17 +653,6 @@ async function handleCreateOrder() {
     }
     
     // 不能提交未来日期
-    var today = getChinaDate();
-    if (date > today) {
-      return sendJSON({ success: false, message: '不能提交未来日期的订单' }, 400);
-    }
-    
-    // 检查是否在七天内
-    var validDates = getLastSevenDays();
-    if (validDates.indexOf(date) === -1) {
-      return sendJSON({ success: false, message: '只能提交最近七天内的订单' }, 400);
-    }
-    
     // 确定价格
     if (itemType === 'blind') {
       var blindLunchPriceRaw = await kv.get('settings_blind_lunch_price');
@@ -860,6 +860,95 @@ async function handleUpdatePayment() {
     return sendJSON({ success: true, data: { order: order }, message: '付款状态更新成功' });
   } catch (e) {
     return sendJSON({ success: false, message: '更新付款状态失败: ' + e.message }, 500);
+  }
+}
+
+// 周月报统计
+async function handleGetReport() {
+  try {
+    var currentUser = await auth.getCurrentUser();
+    if (!currentUser) {
+      return sendJSON({ success: false, message: '未登录' }, 401);
+    }
+
+    var body = req.body || {};
+    var type = body.type || 'week'; // week | month
+
+    var range;
+    if (type === 'month') {
+      range = getMonthDateRange();
+    } else {
+      range = getWeekDateRange(0);
+    }
+
+    var allKeys = await kv.listKeys();
+    var orders = [];
+    for (var j = 0; j < allKeys.length; j++) {
+      var key = allKeys[j];
+      if (key.indexOf('order_') === 0) {
+        var parts = key.split('_');
+        if (parts.length >= 2) {
+          var orderDate = parts[1];
+          if (orderDate >= range.from && orderDate <= range.to) {
+            var order = await kv.getJSON(key);
+            if (order) orders.push(order);
+          }
+        }
+      }
+    }
+
+    // 汇总统计
+    var totalOrders = orders.length;
+    var totalAmount = 0;
+    var paidAmount = 0;
+    var paidCount = 0;
+    var lunchCount = 0;
+    var dinnerCount = 0;
+    var perPerson = {};
+
+    for (var i = 0; i < orders.length; i++) {
+      var o = orders[i];
+      totalAmount += o.price || 0;
+      if (o.paid) {
+        paidAmount += o.price || 0;
+        paidCount++;
+      }
+      if (o.mealType === 'lunch') lunchCount++;
+      else dinnerCount++;
+
+      var name = o.personName || '未知';
+      if (!perPerson[name]) {
+        perPerson[name] = { count: 0, amount: 0, paid: 0 };
+      }
+      perPerson[name].count++;
+      perPerson[name].amount += o.price || 0;
+      if (o.paid) perPerson[name].paid++;
+    }
+
+    var personList = Object.keys(perPerson).map(function(k) {
+      return { name: k, count: perPerson[k].count, amount: perPerson[k].amount, paid: perPerson[k].paid };
+    }).sort(function(a, b) { return b.amount - a.amount; });
+
+    var report = {
+      type: type,
+      range: range,
+      summary: {
+        totalOrders: totalOrders,
+        totalAmount: Math.round(totalAmount * 100) / 100,
+        paidAmount: Math.round(paidAmount * 100) / 100,
+        unpaidAmount: Math.round((totalAmount - paidAmount) * 100) / 100,
+        paidCount: paidCount,
+        unpaidCount: totalOrders - paidCount,
+        lunchCount: lunchCount,
+        dinnerCount: dinnerCount
+      },
+      perPerson: personList,
+      orders: orders
+    };
+
+    return sendJSON({ success: true, data: report });
+  } catch (e) {
+    return sendJSON({ success: false, message: '获取报表失败: ' + e.message }, 500);
   }
 }
 
