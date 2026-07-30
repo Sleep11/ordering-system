@@ -439,7 +439,7 @@
       loginPage.classList.add('hidden');
       loginPage.style.opacity = '';
       mainPage.style.opacity = '';
-    }, 550);
+    }, 700);
 
     document.getElementById('userName').textContent = currentUser.name;
     var roleBadge = document.getElementById('userRole');
@@ -521,7 +521,7 @@
         mainPage.classList.add('hidden');
         mainPage.style.opacity = '';
         loginPage.style.opacity = '';
-      }, 550);
+      }, 700);
       document.getElementById('username').value = '';
       document.getElementById('password').value = '';
       document.getElementById('loginError').textContent = '';
@@ -591,7 +591,7 @@
       mainPage.classList.add('hidden');
       mainPage.style.opacity = '';
       loginPage.style.opacity = '';
-    }, 550);
+    }, 700);
     lastUsersSignature = '';
   }
 

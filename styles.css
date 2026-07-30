@@ -206,7 +206,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
 /* 页面切换动画 */
 #loginPage, #mainPage {
-  transition: opacity 0.5s ease;
+  transition: opacity 0.65s ease;
 }
 
 @keyframes loginFadeIn {
@@ -215,15 +215,15 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 /* 登录按钮渐变 */
 #loginForm .btn-primary {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: linear-gradient(135deg, #1e3a8a, #0d9488);
   border: none;
-  transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s;
+  transition: transform 0.2s, box-shadow 0.3s, opacity 0.2s;
 }
 
 #loginForm .btn-primary:hover {
-  background: linear-gradient(135deg, #1d4ed8, #1e40af);
-  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.35);
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, #0f766e, #1e3a8a);
+  box-shadow: 0 8px 25px rgba(13, 148, 136, 0.35);
+  transform: translateY(-2px);
 }
 
 #loginForm .btn-primary:active {
@@ -237,8 +237,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 @keyframes btnPulse {
-  0%, 100% { opacity: 0.7; }
-  50% { opacity: 0.9; }
+  0%, 100% { opacity: 0.65; }
+  50% { opacity: 0.95; }
 }
 
 /* 自动登录提示 */
@@ -264,13 +264,13 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   width: 56px;
   height: 56px;
   margin: 0 auto 12px;
-  background: linear-gradient(135deg, #2563eb, #6366f1);
-  border-radius: 14px;
+  background: linear-gradient(135deg, #1e3a8a, #0d9488);
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 4px 16px rgba(13, 148, 136, 0.3);
 }
 
 .error-message {
