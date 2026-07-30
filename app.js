@@ -1151,6 +1151,10 @@
 
     if (target.getAttribute('data-action') === 'confirm-pay') {
       var orderId = target.getAttribute('data-order-id');
+      var confirmEl = document.getElementById('confirm-pay-' + orderId);
+      var actionBtn = confirmEl.previousElementSibling;
+      confirmEl.classList.add('hidden');
+      if (actionBtn) actionBtn.classList.remove('hidden');
       withConfirmFeedback(target, function() {
         return apiRequest('POST', 'update-payment', { orderId: orderId, paid: true })
           .then(function(result) { if (result.success) { loadAllData(); return true; } else { showToast(result.message || '操作失败', 'error'); return false; } });
@@ -1160,6 +1164,10 @@
 
     if (target.getAttribute('data-action') === 'confirm-unpay') {
       var orderId = target.getAttribute('data-order-id');
+      var confirmEl = document.getElementById('confirm-pay-' + orderId);
+      var actionBtn = confirmEl.previousElementSibling;
+      confirmEl.classList.add('hidden');
+      if (actionBtn) actionBtn.classList.remove('hidden');
       withConfirmFeedback(target, function() {
         return apiRequest('POST', 'update-payment', { orderId: orderId, paid: false })
           .then(function(result) { if (result.success) { loadAllData(); return true; } else { showToast(result.message || '操作失败', 'error'); return false; } });
@@ -1187,6 +1195,10 @@
 
     if (target.getAttribute('data-action') === 'confirm-delete') {
       var orderId = target.getAttribute('data-order-id');
+      var confirmEl = document.getElementById('confirm-del-' + orderId);
+      var actionBtn = confirmEl.previousElementSibling;
+      confirmEl.classList.add('hidden');
+      if (actionBtn) actionBtn.classList.remove('hidden');
       withConfirmFeedback(target, function() {
         return apiRequest('POST', 'delete-order', { orderId: orderId })
           .then(function(result) { if (result.success) { loadAllData(); return true; } else { showToast(result.message || '删除失败', 'error'); return false; } });
@@ -1214,6 +1226,10 @@
 
     if (target.getAttribute('data-action') === 'confirm-delete-date') {
       var date = target.getAttribute('data-date');
+      var confirmEl = document.getElementById('confirm-delete-date-' + date);
+      var actionBtn = confirmEl.previousElementSibling;
+      confirmEl.classList.add('hidden');
+      if (actionBtn) actionBtn.classList.remove('hidden');
       withConfirmFeedback(target, function() {
         return apiRequest('POST', 'delete-orders-by-date', { date: date })
           .then(function(result) { if (result.success) { loadAllData(); return true; } else { showToast(result.message || '删除失败', 'error'); return false; } });
@@ -1519,6 +1535,10 @@
 
     if (target.getAttribute('data-action') === 'confirm-reset') {
       var userId = target.getAttribute('data-user-id');
+      var confirmEl = document.getElementById('confirm-reset-' + userId);
+      var actionBtn = confirmEl.previousElementSibling;
+      confirmEl.classList.add('hidden');
+      if (actionBtn) actionBtn.classList.remove('hidden');
       withConfirmFeedback(target, function() {
         return apiRequest('POST', 'reset-password', { userId: userId })
           .then(function(result) {
@@ -1548,6 +1568,10 @@
 
     if (target.getAttribute('data-action') === 'confirm-delete-user') {
       var userId = target.getAttribute('data-user-id');
+      var confirmEl = document.getElementById('confirm-del-user-' + userId);
+      var actionBtn = confirmEl.previousElementSibling;
+      confirmEl.classList.add('hidden');
+      if (actionBtn) actionBtn.classList.remove('hidden');
       withConfirmFeedback(target, function() {
         return apiRequest('POST', 'delete-user', { userId: userId })
           .then(function(result) { if (result.success) { loadAllData(); return true; } else { showToast(result.message || '删除失败', 'error'); return false; } });
