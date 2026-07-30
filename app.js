@@ -467,13 +467,19 @@
     var dateInput = document.getElementById('orderDate');
     dateInput.value = getChinaDate();
 
-    // 根据当前时间自动选择餐别：14:00 前午餐，之后晚餐
+    // 根据当前时间自动选择餐别和日期
+    // 14:00 前 → 今天午餐 / 14:00-20:00 → 今天晚餐 / 20:00 后 → 明天午餐
     var nowHour = new Date().getHours();
     var mealSelect = document.getElementById('mealType');
     if (nowHour < 14) {
       mealSelect.value = 'lunch';
-    } else {
+    } else if (nowHour < 20) {
       mealSelect.value = 'dinner';
+    } else {
+      mealSelect.value = 'lunch';
+      var chinaNow = new Date(new Date().getTime() + 8 * 60 * 60 * 1000);
+      var tomorrow = new Date(chinaNow.getTime() + 24 * 60 * 60 * 1000);
+      dateInput.value = tomorrow.toISOString().split('T')[0];
     }
     // 触发 change 事件以更新盲盒价格
     mealSelect.dispatchEvent(new Event('change'));
