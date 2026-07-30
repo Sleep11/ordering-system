@@ -365,6 +365,11 @@
 
     // 如果保存了密码，优先直接用密码登录（token 可能已过期）
     if (saved.username && saved.password) {
+      // 显示自动登录提示
+      var errorEl = document.getElementById('loginError');
+      errorEl.textContent = '';
+      var hintEl = document.getElementById('autoLoginHint');
+      if (hintEl) hintEl.classList.remove('hidden');
       performLogin(saved.username, saved.password, saved.remember !== false);
       return true;
     }
@@ -373,10 +378,17 @@
 
   // 执行登录（供自动登录和手动登录共用）
   function performLogin(username, password, rememberMe) {
+    var submitBtn = document.querySelector('#loginForm button[type="submit"]');
     var errorEl = document.getElementById('loginError');
     errorEl.textContent = '';
+    // 禁用按钮显示加载状态
+    if (submitBtn && !submitBtn.disabled) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = '登录中...';
+    }
     apiRequest('POST', 'login', { username: username, password: password })
       .then(function(result) {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '登录'; }
         if (result.success) {
           token = result.data.token;
           currentUser = result.data.user;
@@ -386,11 +398,16 @@
           errorEl.textContent = result.message || '登录失败';
           // 自动登录失败时清除过期凭据
           if (!result.success && document.getElementById('mainPage').classList.contains('hidden')) {
+            var hintEl = document.getElementById('autoLoginHint');
+            if (hintEl) hintEl.classList.add('hidden');
             clearLoginInfo();
           }
         }
       })
-      .catch(function() { errorEl.textContent = '网络错误，请重试'; });
+      .catch(function() {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '登录'; }
+        errorEl.textContent = '网络错误，请重试';
+      });
   }
 
   document.getElementById('loginForm').addEventListener('submit', function(e) {
@@ -409,8 +426,20 @@
 
   // ========== 显示主页面 ==========
   function showMainPage() {
-    document.getElementById('loginPage').classList.add('hidden');
-    document.getElementById('mainPage').classList.remove('hidden');
+    var loginPage = document.getElementById('loginPage');
+    var mainPage = document.getElementById('mainPage');
+    // 淡入主页面
+    mainPage.style.opacity = '0';
+    mainPage.classList.remove('hidden');
+    loginPage.style.opacity = '0';
+    // 强制回流后启动过渡
+    mainPage.offsetHeight;
+    mainPage.style.opacity = '1';
+    setTimeout(function() {
+      loginPage.classList.add('hidden');
+      loginPage.style.opacity = '';
+      mainPage.style.opacity = '';
+    }, 400);
 
     document.getElementById('userName').textContent = currentUser.name;
     var roleBadge = document.getElementById('userRole');
@@ -481,8 +510,18 @@
       } else {
         clearLoginInfo();
       }
-      document.getElementById('mainPage').classList.add('hidden');
-      document.getElementById('loginPage').classList.remove('hidden');
+      var mainPage = document.getElementById('mainPage');
+      var loginPage = document.getElementById('loginPage');
+      mainPage.style.opacity = '0';
+      loginPage.classList.remove('hidden');
+      loginPage.style.opacity = '0';
+      loginPage.offsetHeight;
+      loginPage.style.opacity = '1';
+      setTimeout(function() {
+        mainPage.classList.add('hidden');
+        mainPage.style.opacity = '';
+        loginPage.style.opacity = '';
+      }, 400);
       document.getElementById('username').value = '';
       document.getElementById('password').value = '';
       document.getElementById('loginError').textContent = '';
@@ -541,8 +580,18 @@
     token = null;
     currentUser = null;
     stopAutoRefresh();
-    document.getElementById('mainPage').classList.add('hidden');
-    document.getElementById('loginPage').classList.remove('hidden');
+    var mainPage = document.getElementById('mainPage');
+    var loginPage = document.getElementById('loginPage');
+    mainPage.style.opacity = '0';
+    loginPage.classList.remove('hidden');
+    loginPage.style.opacity = '0';
+    loginPage.offsetHeight;
+    loginPage.style.opacity = '1';
+    setTimeout(function() {
+      mainPage.classList.add('hidden');
+      mainPage.style.opacity = '';
+      loginPage.style.opacity = '';
+    }, 400);
     lastUsersSignature = '';
   }
 
