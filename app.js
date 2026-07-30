@@ -468,10 +468,10 @@
     dateInput.value = getChinaDate();
 
     // 根据当前时间自动选择餐别和日期
-    // 14:00 前 → 今天午餐 / 14:00-20:00 → 今天晚餐 / 20:00 后 → 明天午餐
+    // 00:00-11:59 → 今天午餐 / 12:00-20:00 → 今天晚餐 / 20:00 后 → 明天午餐
     var nowHour = new Date().getHours();
     var mealSelect = document.getElementById('mealType');
-    if (nowHour < 14) {
+    if (nowHour < 12) {
       mealSelect.value = 'lunch';
     } else if (nowHour < 20) {
       mealSelect.value = 'dinner';
