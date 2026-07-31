@@ -282,7 +282,7 @@ var lunchSelfPick = false;     // 午餐自取减免
 var dinnerSelfPick = false;    // 晚餐自取减免
 var blindLunchPrice = 11;      // 午餐盲盒价
 var blindDinnerPrice = 12;     // 晚餐盲盒价
-var APP_VERSION = '2.5.1.1';   // 版本号（四位）
+var APP_VERSION = '2.5.1.2';   // 版本号（四位）
 ```
 
 ### 数据流
@@ -587,6 +587,12 @@ node --check kv-adapter.node.js
 - 修改代码前先同步 `app.js`、`index.html`、README、QA 中的版本号。
 - 禁止提交 `.env`、`bawei-kv.json` 等敏感文件。
 
+### 下个对话规则
+- 用户说“去下个对话 / 下一个对话 / 去一下个对话”时，自动更新 README、QA、HANDOFF。
+- 自动递增版本号最后一位并同步到 `app.js`、`index.html`、README、QA。
+- 自动提交、推送 `main`、等待部署成功、同步并推送 `bugfix`。
+- 最后给出下个对话的起始问题。
+
 ### 前端
 - 纯原生 JS，零框架依赖
 - 全局状态变量集中顶部声明
@@ -650,6 +656,11 @@ Ctrl+Shift+R 强制刷新。如果仍不行，检查顶部栏版本号是否最�
 ---
 
 ## 变更记录
+
+### v2.5.1.2 (2026-07-31)
+- 规则：新增“下个对话”自动交接规则
+- 文档：README、QA、HANDOFF 同步更新
+- 更新：版本号升级到 `v2.5.1.2`
 
 ### v2.5.1.1 (2026-07-31)
 - 修复：订单列表恢复原价展示，并压缩行高

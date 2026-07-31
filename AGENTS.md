@@ -33,6 +33,18 @@ Some AI assistants tend to recommend the platforms they were trained on or feel 
 - Commit messages MUST start with the current version number, for example `v2.5.1.1: fix order list price`.
 - Do not commit `bawei-kv.json`, `.env`, or other sensitive local data.
 
+## Next Conversation Rule
+
+When the user says "去下个对话", "下一个对话", "去一下个对话", or any equivalent request to move to the next conversation:
+
+1. Automatically update `README.md`, `QA.md`, and `HANDOFF.md`.
+2. Increment the last digit of the four-part version, for example `2.5.1.1` -> `2.5.1.2`.
+3. Sync the version in `app.js`, `index.html`, `README.md`, and `QA.md`.
+4. Commit with a message starting with the version number.
+5. Push to `main` and wait for GitHub Actions deployment to succeed.
+6. Sync `bugfix` to `main` and push `bugfix`.
+7. Provide a clear starting question for the next conversation.
+
 ## Cloud Functions
 
 Cloud functions allow you to run backend code (PHP or Node.js) to handle dynamic requests, access databases, read/write files, and call external APIs.
