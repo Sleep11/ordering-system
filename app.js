@@ -536,12 +536,15 @@
     dateInput.max = maxDate.toISOString().split('T')[0];
 
     // 根据当前时间自动选择餐别和日期
-    // 00:00-11:59 → 今天午餐 / 12:00-20:00 → 今天晚餐 / 20:00 后 → 明天午餐
-    var nowHour = new Date().getHours();
+    // 8:00-11:30 午餐 / 11:30-20:30 晚餐 / 20:30-8:00 明天午餐
+    var now = new Date();
+    var nowHour = now.getHours();
+    var nowMin = now.getMinutes();
+    var nowTotalMin = nowHour * 60 + nowMin;
     var mealSelect = document.getElementById('mealType');
-    if (nowHour < 12) {
+    if (nowTotalMin >= 8 * 60 && nowTotalMin < 11 * 60 + 30) {
       mealSelect.value = 'lunch';
-    } else if (nowHour < 20) {
+    } else if (nowTotalMin >= 11 * 60 + 30 && nowTotalMin < 20 * 60 + 30) {
       mealSelect.value = 'dinner';
     } else {
       mealSelect.value = 'lunch';
@@ -583,6 +586,13 @@
 
   // ========== 退出登录 ==========
   document.getElementById('logoutBtn').addEventListener('click', function() {
+
+    // 版本号显示（仅管理员）
+    var versionBadge = document.getElementById('versionBadge');
+    if (versionBadge && currentUser.role === 'admin') {
+      versionBadge.textContent = 'v' + APP_VERSION;
+      versionBadge.style.display = '';
+    }
 
   // ========== 全局刷新按钮 ==========
   document.getElementById('refreshBtn').addEventListener('click', function() {
@@ -2170,3 +2180,4 @@
   }
 
 })();
+  var APP_VERSION = '2.3.0';
