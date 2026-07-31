@@ -1,0 +1,6 @@
+{
+  "name": "ordering-system",
+  "scripts": {
+    "deploy": "deno -Ar https://host.retiehe.com/cli deploy"
+  }
+}

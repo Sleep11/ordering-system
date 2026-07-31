@@ -1077,17 +1077,12 @@
 
       html += '<div class="orders-list"' + (isExpanded ? '' : ' style="display:none;"') + '>';
 
-      // 今日订单：按午餐/晚餐分组
-      if (isToday) {
-        var lunchOrders = orders.filter(function(o) { return o.mealType === 'lunch'; });
-        var dinnerOrders = orders.filter(function(o) { return o.mealType === 'dinner'; });
+      // 所有日期均按午餐/晚餐分组
+      var lunchOrders = orders.filter(function(o) { return o.mealType === 'lunch'; });
+      var dinnerOrders = orders.filter(function(o) { return o.mealType === 'dinner'; });
 
-        html += renderMealGroup(lunchOrders, '午餐', 'lunch', today);
-        html += renderMealGroup(dinnerOrders, '晚餐', 'dinner', today);
-      } else {
-        // 历史订单：保持原有平铺方式
-        html += renderOrderCards(orders);
-      }
+      html += renderMealGroup(lunchOrders, '午餐', 'lunch', date);
+      html += renderMealGroup(dinnerOrders, '晚餐', 'dinner', date);
 
       // 删除当天全部订单（管理员）
       if (currentUser.role === 'admin') {
@@ -1127,7 +1122,13 @@
     }
 
     var summaryText = getMealSummary(orders);
-    var totalPrice = orders.reduce(function(sum, o) { return sum + o.price; }, 0);
+    var today = getChinaDate();
+    var totalPrice = orders.reduce(function(sum, o) {
+      var p = o.price;
+      if (date === today && lunchSelfPick && mealType === 'lunch') p = Math.max(0, p - 1);
+      if (date === today && dinnerSelfPick && mealType === 'dinner') p = Math.max(0, p - 1);
+      return sum + p;
+    }, 0);
     var paidAll = orders.every(function(o) { return o.paid; });
     var paidNone = orders.every(function(o) { return !o.paid; });
     var paidSome = !paidAll && !paidNone;
