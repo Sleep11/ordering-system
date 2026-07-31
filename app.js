@@ -528,6 +528,12 @@
     // 设置日期默认值
     var dateInput = document.getElementById('orderDate');
     dateInput.value = getChinaDate();
+    // 设置日期范围：前30天 ~ 后30天
+    var chinaNow = new Date(new Date().getTime() + 8 * 60 * 60 * 1000);
+    var minDate = new Date(chinaNow.getTime() - 30 * 24 * 60 * 60 * 1000);
+    var maxDate = new Date(chinaNow.getTime() + 30 * 24 * 60 * 60 * 1000);
+    dateInput.min = minDate.toISOString().split('T')[0];
+    dateInput.max = maxDate.toISOString().split('T')[0];
 
     // 根据当前时间自动选择餐别和日期
     // 00:00-11:59 → 今天午餐 / 12:00-20:00 → 今天晚餐 / 20:00 后 → 明天午餐
@@ -2034,12 +2040,12 @@
     var html = '';
     for (var i = 0; i < dishItems.length; i++) {
       var m = dishItems[i];
-      html += '<div class="menu-item-row" data-id="' + escapeHtml(m.id) + '">';
-      html += '<span class="menu-item-drag">☰</span>';
-      html += '<input type="text" class="menu-item-name" value="' + escapeHtml(m.name) + '" placeholder="名称">';
-      html += '<input type="number" class="menu-item-price" value="' + m.price + '" step="1" min="0" style="width:64px">';
-      html += '<label class="menu-item-weight-label">权重 <input type="number" class="menu-item-weight" value="' + (m.weight || 0) + '" step="1" min="0" style="width:56px"></label>';
-      html += '<button class="btn btn-danger btn-small menu-item-del" data-id="' + escapeHtml(m.id) + '">×</button>';
+      html += '<div class="dish-item-row" data-id="' + escapeHtml(m.id) + '">';
+      html += '<span class="dish-item-drag">☰</span>';
+      html += '<input type="text" class="dish-item-name" value="' + escapeHtml(m.name) + '" placeholder="名称">';
+      html += '<span class="dish-price-wrap"><span class="dish-yen">¥</span><input type="number" class="dish-item-price" value="' + m.price + '" step="1" min="0"></span>';
+      html += '<label class="dish-item-weight-label">权重 <input type="number" class="dish-item-weight" value="' + (m.weight || 0) + '" step="1" min="0"></label>';
+      html += '<button class="btn btn-danger btn-small dish-item-del" data-id="' + escapeHtml(m.id) + '">×</button>';
       html += '</div>';
     }
     container.innerHTML = html;
@@ -2055,14 +2061,14 @@
   });
 
   document.getElementById('saveDishBtn').addEventListener('click', function() {
-    var rows = document.querySelectorAll('.menu-item-row');
+    var rows = document.querySelectorAll('.dish-item-row');
     var updated = [];
     for (var i = 0; i < rows.length; i++) {
       var row = rows[i];
       var id = row.getAttribute('data-id');
-      var nameInput = row.querySelector('.menu-item-name');
-      var priceInput = row.querySelector('.menu-item-price');
-      var weightInput = row.querySelector('.menu-item-weight');
+      var nameInput = row.querySelector('.dish-item-name');
+      var priceInput = row.querySelector('.dish-item-price');
+      var weightInput = row.querySelector('.dish-item-weight');
       if (!nameInput || !priceInput) continue;
       var price = parseInt(priceInput.value) || 0;
       if (price < 0) price = 0;
@@ -2092,7 +2098,7 @@
 
   document.getElementById('dishList').addEventListener('click', function(e) {
     var target = e.target;
-    if (target.classList.contains('menu-item-del')) {
+    if (target.classList.contains('dish-item-del')) {
       var id = target.getAttribute('data-id');
       dishItems = dishItems.filter(function(m) { return m.id !== id; });
       menuOptsCache = '';
