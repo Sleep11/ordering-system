@@ -277,7 +277,7 @@
 
   function populateDishDropdowns() {
     var singleSelect = document.getElementById('singledishItem');
-    var editSelect = document.getElementById('editdishItem');
+    var editSelect = document.getElementById('editDishItem');
     var html = '<option value="">-- 请选择餐品 --</option>';
     for (var i = 0; i < dishItems.length; i++) {
       var m = dishItems[i];
@@ -500,6 +500,7 @@
       document.getElementById('sidebar').classList.remove('hidden');
       document.getElementById('section-dish').classList.remove('hidden');
       document.getElementById('section-admin').classList.remove('hidden');
+      document.getElementById('section-report').classList.remove('hidden');
       document.getElementById('userSelectGroup').style.display = '';
       document.getElementById('singleDishGroup').style.display = 'none';
       document.getElementById('singleNoteGroup').style.display = 'none';
@@ -507,6 +508,7 @@
       document.getElementById('sidebar').classList.add('hidden');
       document.getElementById('section-dish').classList.add('hidden');
       document.getElementById('section-admin').classList.add('hidden');
+      document.getElementById('section-report').classList.add('hidden');
       document.getElementById('userSelectGroup').style.display = 'none';
       document.getElementById('singleDishGroup').style.display = '';
       document.getElementById('singleNoteGroup').style.display = '';
@@ -764,8 +766,8 @@
         '<span class="col-menu">' +
           '<select class="dish-select">' + optsHtml + '</select>' +
         '</span>' +
-        '<span class="col-note">' +
-          '<input type="text" class="note-input" placeholder="备注" value="' + escapeHtml(note) + '">' +
+        '<span class="col-price-cell">' +
+          '<span class="dish-price-display">-</span>' +
         '</span>';
       fragment.appendChild(row);
     }
@@ -813,6 +815,16 @@
   // 行内 select/input 变化联动
   document.getElementById('batchOrderRows').addEventListener('change', function(e) {
     var target = e.target;
+    if (target.classList.contains('dish-select')) {
+      var row = target.closest('.batch-order-row');
+      var priceCell = row.querySelector('.dish-price-display');
+      var opt = target.options[target.selectedIndex];
+      if (priceCell && opt && opt.value) {
+        priceCell.textContent = '¥' + opt.getAttribute('data-price');
+      } else if (priceCell) {
+        priceCell.textContent = '-';
+      }
+    }
   });
 
   // 点击人员行切换复选框
@@ -867,14 +879,14 @@
     document.getElementById('editMealType').value = order.mealType;
 
     // 尝试匹配菜单项
-    var editMenu = document.getElementById('editdishItem');
+    var editMenu = document.getElementById('editDishItem');
     if (editMenu && dishItems.length > 0) {
       var matched = null;
       for (var mi = 0; mi < dishItems.length; mi++) {
         if (dishItems[mi].name === order.itemName) { matched = dishItems[mi]; break; }
       }
       editMenu.value = matched ? matched.id : '';
-      updateDishPriceHint('editdishItem', 'editDishPrice');
+      updateDishPriceHint('editDishItem', 'editDishPrice');
     }
     var editNote = document.getElementById('editNote');
     if (editNote) editNote.value = order.note || '';
@@ -894,7 +906,7 @@
 
     var order = editingOrder;
     var newMealType = document.getElementById('editMealType').value;
-    var dishId = document.getElementById('editdishItem').value;
+    var dishId = document.getElementById('editDishItem').value;
     var errorEl = document.getElementById('editOrderError');
     errorEl.textContent = '';
 
@@ -906,7 +918,7 @@
       date: order.date,
       mealType: newMealType,
       itemType: 'dish',
-      dishId: dishId
+      menuId: dishId
     };
 
     // 如果餐别变了，传递旧餐别以便后端迁移订单
@@ -1439,7 +1451,7 @@
           date: date,
           mealType: mealType,
           itemType: 'dish',
-          dishId: dishId
+          menuId: dishId
         };
         if (noteInput && noteInput.value.trim()) {
           data.note = noteInput.value.trim();
@@ -1469,7 +1481,7 @@
         date: date,
         mealType: mealType,
         itemType: 'dish',
-        dishId: dishId
+        menuId: dishId
       };
       
 

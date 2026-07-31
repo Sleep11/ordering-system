@@ -1143,6 +1143,21 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   min-width: 120px;
 }
 
+
+.col-price-hdr {
+  width: 56px;
+  text-align: center;
+}
+.col-price-cell {
+  width: 56px;
+  text-align: center;
+}
+.dish-price-display {
+  font-weight: 600;
+  color: var(--primary);
+  font-size: 13px;
+}
+
 .col-menu select {
   width: 100%;
 }
@@ -1168,7 +1183,22 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   .col-name { min-width: 52px; }
   .col-menu { min-width: 100px; }
   .col-note { min-width: 60px; }
-  .col-menu select { font-size: 12px; }
+  
+.col-price-hdr {
+  width: 56px;
+  text-align: center;
+}
+.col-price-cell {
+  width: 56px;
+  text-align: center;
+}
+.dish-price-display {
+  font-weight: 600;
+  color: var(--primary);
+  font-size: 13px;
+}
+
+.col-menu select { font-size: 12px; }
   .col-note input { font-size: 12px; }
   
   .report-cards {
