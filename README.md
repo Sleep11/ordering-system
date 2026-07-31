@@ -1,64 +1,97 @@
 # 多人在线点餐系统 — 项目文档
 
-> 基于 Retinbox (热铁盒) Web Hosting 的全栈点餐系统，支持多用户、盲盒/自定义餐品、午餐/晚餐分时段管理。
+> 基于 Retinbox (热铁盒) Web Hosting 的全栈点餐系统。
+> 支持多用户、48 款菜品菜单、午餐/晚餐分时段管理、自取减免、周月报统计。
+> GitHub push 自动部署，零运维。
 
 ---
 
 ## 目录
 
+- [快速开始](#快速开始)
 - [系统架构](#系统架构)
 - [文件清单](#文件清单)
 - [数据存储设计](#数据存储设计)
 - [API 接口文档](#api-接口文档)
 - [前端架构](#前端架构)
+- [功能详解](#功能详解)
 - [认证与安全](#认证与安全)
 - [部署](#部署)
+- [自动部署 (GitHub Actions)](#自动部署-github-actions)
+- [数据恢复](#数据恢复)
 - [常见维护操作](#常见维护操作)
+- [开发规范](#开发规范)
+- [常见问题](#常见问题)
 - [变更记录](#变更记录)
+
+---
+
+## 快速开始
+
+### 访问地址
+`https://bawei.rth1.xyz`
+
+### 默认账号
+| 用户名 | 密码 | 角色 |
+|--------|------|------|
+| 陈立昊 | 123456 | 管理员 |
+| 王宇翔 | 123456 | 管理员 |
+| 王里庚 | 123456 | 普通用户 |
+| 王晨强 | 123456 | 普通用户 |
+| 康子阔 | 123456 | 普通用户 |
+| 刘彦宏 | 123456 | 普通用户 |
+| 卫佳旺 | 123456 | 普通用户 |
+| 张晓旭 | 123456 | 普通用户 |
+| 韩志芳 | 123456 | 普通用户 |
+| 胡昌雨 | 123456 | 普通用户 |
+
+### 餐别自动选择规则
+| 时间段 | 日期 | 餐别 |
+|--------|------|------|
+| 08:00 - 11:30 | 今天 | 午餐 |
+| 11:30 - 20:30 | 今天 | 晚餐 |
+| 20:30 - 08:00 | 明天 | 午餐 |
 
 ---
 
 ## 系统架构
 
 ```
-┌─────────────────────────────────┐
-│           浏览器 (SPA)           │
-│  index.html + styles.css        │
-│  app.js (纯前端 MVC)            │
-└────────────┬────────────────────┘
-             │ HTTP POST
-             ▼
-┌─────────────────────────────────┐
-│         Retinbox 云函数          │
-│  api.node.js   (主路由)         │
-│  auth.node.js  (认证模块)       │
-│  kv-adapter.node.js (数据库层)  │
-└────────────┬────────────────────┘
-             │
-             ▼
-┌─────────────────────────────────┐
-│       Retinbox KV 数据库        │
-│          (database: ordering)   │
-└─────────────────────────────────┘
+浏览器 (SPA)
+  index.html + styles.css + app.js
+    |
+    | HTTP POST /api.node.js
+    v
+Retinbox Node.js 云函数
+  api.node.js    — 主路由 (15 个 action)
+  auth.node.js   — 认证模块 (密码哈希/会话)
+  kv-adapter.node.js — KV 数据库适配层
+    |
+    v
+Retinbox KV 数据库 (database: ordering)
 ```
 
-- **前端**：原生 HTML/CSS/JS 单页应用，无第三方框架
-- **后端**：Retinbox Node.js 云函数 (`.node.js` 后缀)
-- **数据库**：Retinbox 内置 KV 存储，数据库名 `ordering`
-- **平台**：[Retinbox Web Hosting](https://docs.retiehe.com/)
+- **前端**：原生 HTML/CSS/JS，零框架依赖，~2186 行
+- **后端**：Retinbox Node.js 云函数，~1050 行
+- **数据库**：Retinbox KV 存储，key-value 结构
+- **部署**：GitHub Actions → Deno CLI → Retinbox，全自动
 
 ---
 
 ## 文件清单
 
-| 文件 | 行数 | 说明 |
-|------|------|------|
-| `index.html` | ~400 | 主页面：登录页、主页面(侧边栏+订单+用户管理+弹窗) |
-| `app.js` | ~2100 | 前端核心逻辑：状态管理、API 调用、UI 渲染、事件处理、菜品管理、报表 |
-| `styles.css` | ~2000 | 完整样式系统：设计令牌、布局、组件、动效、响应式、移动端适配 |
-| `api.node.js` | ~1050 | 后端 API 路由：认证、订单 CRUD、用户管理、设置、菜品管理、周月报 |
-| `auth.node.js` | ~205 | 认证模块：密码哈希、会话管理、权限校验 |
-| `kv-adapter.node.js` | ~76 | 数据库抽象层：封装 Retinbox KV API |
+| 文件 | 说明 |
+|------|------|
+| `index.html` | 主页面：登录页 + 主页面 (侧边栏/点餐/统计/订单/报表/菜品管理/用户管理) |
+| `app.js` | 前端核心 (~2186 行)：状态管理、API 调用、UI 渲染、事件处理 |
+| `styles.css` | 完整样式系统 (~2000 行)：设计令牌、布局、组件、动效、响应式、移动端 |
+| `api.node.js` | 后端 API (~1050 行)：15 个 action 路由 + 认证/订单/用户/菜单/报表 |
+| `auth.node.js` | 认证模块：FNV-1a 密码哈希 + Salt + 24h Token 会话 |
+| `kv-adapter.node.js` | 数据库抽象层：封装 Retinbox KV API |
+| `rth-host.json` | Retinbox 部署配置：site/outdir/build |
+| `package.json` | npm 脚本：`npm run deploy` |
+| `.github/workflows/deploy.yml` | GitHub Actions：push main 自动部署 |
+| `restore.html` | 数据恢复工具：粘贴 KV 备份 JSON 一键恢复 |
 
 ---
 
@@ -66,60 +99,56 @@
 
 ### KV 数据库名：`ordering`
 
-所有 Key 命名规范：仅允许 **字母、数字、下划线 `_`、连字符 `-`**。
-
 ### Key 结构
 
-| Key 模式 | 值类型 | 说明 |
-|----------|--------|------|
-| `users` | JSON 数组 | 所有用户列表，每个用户含 id/name/role/passwordHash/passwordSalt |
-| `session_{tokenHash}` | JSON 对象 | 用户会话，含 userId/role/createdAt/expiresAt |
-| `order_{date}_{userId}_{mealType}` | JSON 对象 | 单条订单，如 `order_2025-01-15_admin_chenli_lunch` |
-| `settings_order_locked` | `"true"/"false"` | 全局锁定开关 |
-| `settings_lunch_locked` | `"true"/"false"` | 午餐锁定开关 |
-| `settings_dinner_locked` | `"true"/"false"` | 晚餐锁定开关 |
-| `settings_blind_lunch_price` | 数字字符串 | 午餐盲盒价格，默认 `"11"` |
-| `settings_blind_dinner_price` | 数字字符串 | 晚餐盲盒价格，默认 `"12"` |
-| `login_fails_{userId}` | 数字字符串 | 登录失败计数 |
-| `login_lock_{userId}` | JSON 对象 | 登录锁定信息，含 lockUntil |
+| Key | 类型 | 说明 |
+|-----|------|------|
+| `users` | JSON 数组 | 所有用户 (id/name/role/passwordHash/passwordSalt) |
+| `session_{hash}` | JSON 对象 | 登录会话 (userId/role/expiresAt)，24h 过期 |
+| `order_{date}_{userId}_{mealType}` | JSON 对象 | 单条订单 |
+| `settings_order_locked` | Bool 字符串 | 全局修改锁定 |
+| `settings_lunch_locked` | Bool 字符串 | 午餐提交锁定 |
+| `settings_dinner_locked` | Bool 字符串 | 晚餐提交锁定 |
+| `settings_blind_lunch_price` | 数字字符串 | 午餐盲盒价格 (管理员可调) |
+| `settings_blind_dinner_price` | 数字字符串 | 晚餐盲盒价格 |
+| `settings_lunch_selfpick` | Bool 字符串 | 午餐自取减免开关 |
+| `settings_dinner_selfpick` | Bool 字符串 | 晚餐自取减免开关 |
+| `settings_menu` | JSON 数组 | 菜品列表 (id/name/price/weight) |
+| `login_fails_{userId}` | 数字 | 登录失败计数 (5 次锁定 15 分钟) |
+| `login_lock_{userId}` | JSON | 登录锁定信息 (lockUntil) |
 
-### 用户对象结构
-
-```json
-{
-  "id": "admin_chenli",
-  "name": "陈立昊",
-  "role": "admin",
-  "passwordHash": "64字符FNV哈希",
-  "passwordSalt": "32字符随机盐"
-}
-```
-
-### 订单对象结构
+### 订单对象
 
 ```json
 {
-  "id": "order_2025-01-15_admin_chenli_lunch",
-  "date": "2025-01-15",
-  "userId": "admin_chenli",
-  "personName": "陈立昊",
+  "id": "order_2026-07-31_user_wangchen_lunch",
+  "date": "2026-07-31",
+  "userId": "user_wangchen",
+  "personName": "王晨强",
   "mealType": "lunch",
-  "itemType": "blind",
-  "itemName": "盲盒",
-  "price": 11,
+  "itemType": "menu",
+  "itemName": "炒冷面",
+  "price": 14,
   "paid": false,
   "paidAt": null,
-  "createdAt": "2025-01-15T04:00:00.000Z",
-  "updatedAt": "2025-01-15T04:00:00.000Z"
+  "createdAt": "2026-07-31T04:00:00.000Z",
+  "updatedAt": "2026-07-31T04:00:00.000Z",
+  "note": ""
 }
 ```
 
-### 餐品定价规则
+### 菜品对象
 
-| 餐别 | 盲盒价格（管理员可调） | 自定义价格 |
-|------|---------------------|-----------|
-| 午餐 (lunch) | 默认 ¥11.00（侧边栏可修改） | 用户自填 |
-| 晚餐 (dinner) | 默认 ¥12.00（侧边栏可修改） | 用户自填 |
+```json
+{
+  "id": "m001",
+  "name": "炒冷面",
+  "price": 14,
+  "weight": 100
+}
+```
+
+权重越高排序越靠前，管理员可在菜品管理面板中调整。
 
 ---
 
@@ -128,6 +157,7 @@
 - **入口**: `POST /api.node.js`
 - **Content-Type**: `application/x-www-form-urlencoded`
 - **认证**: Header `Authorization: Bearer <token>` 或 POST 参数 `token`
+- **缓存**: 所有响应带 `Cache-Control: no-store`，浏览器不缓存
 
 ### 通用响应格式
 
@@ -137,211 +167,252 @@
 
 ### 接口列表
 
-#### 认证类（无需登录）
+#### 认证类
 
-| action | 说明 | 参数 | 返回 |
-|--------|------|------|------|
-| `login` | 用户登录 | username, password | { token, user } |
-| `logout` | 退出登录 | (自动从token识别) | — |
+| action | 说明 | 权限 | 关键参数 |
+|--------|------|------|----------|
+| `login` | 登录 | - | username, password |
+| `logout` | 登出 | - | (token) |
+| `me` | 当前用户 | 登录 | - |
+| `change-password` | 修改密码 | 登录 | oldPassword, newPassword |
 
-#### 用户类（需登录）
+#### 用户类
 
-| action | 说明 | 权限 | 参数 | 返回 |
-|--------|------|------|------|------|
-| `me` | 获取当前用户 | 所有 | — | { user } |
-| `change-password` | 修改密码 | 所有 | oldPassword, newPassword | — |
-| `get-users` | 获取用户列表 | 所有 | — | { users[] } |
-| `create-user` | 添加用户 | admin | username, role | — |
-| `delete-user` | 删除用户 | admin | userId | — |
-| `reset-password` | 重置密码为123456 | admin | userId | — |
+| action | 说明 | 权限 | 关键参数 |
+|--------|------|------|----------|
+| `get-users` | 用户列表 | 登录 | - |
+| `create-user` | 添加用户 | admin | username, role |
+| `delete-user` | 删除用户 | admin | userId |
+| `reset-password` | 重置密码为 123456 | admin | userId |
 
-#### 订单类（需登录）
+#### 订单类
 
-| action | 说明 | 权限 | 关键参数 | 备注 |
-|--------|------|------|----------|------|
-| `get-orders` | 获取最近七天订单 | 所有 | — | 自动清理过期订单 |
-| `create-order` | 创建/修改订单 | 所有* | date, mealType, itemType, userId†, itemName‡, price‡, oldMealType‡‡ | *普通用户只能给自己订；†仅admin；‡仅custom类型；‡‡跨餐别修改时传 |
-| `delete-order` | 删除单条订单 | 所有* | orderId | *需系统未锁定或本人订单 |
-| `delete-orders-by-date` | 删除当天全部订单 | admin | date | — |
-| `update-payment` | 切换付款状态 | admin | orderId, paid | — |
+| action | 说明 | 权限 | 关键参数 |
+|--------|------|------|----------|
+| `get-orders` | 当月订单 | 登录 | - |
+| `create-order` | 创建/修改 | 登录* | date, mealType, itemType, menuId, userId† |
+| `delete-order` | 删除单条 | 登录* | orderId |
+| `delete-orders-by-date` | 删除当天全部 | admin | date |
+| `update-payment` | 切换付款 | admin | orderId, paid |
 
-#### 设置类
+*普通用户仅可操作自己，系统锁定时受限；†仅 admin 可为他人订餐
 
-| action | 说明 | 权限 | 参数 | 备注 |
-|--------|------|------|------|------|
-| `get-settings` | 获取系统设置 | 无需登录 | — | 返回 orderLocked/lunchLocked/dinnerLocked |
-| `update-settings` | 更新设置 | admin | key, value | key 为 `settings_order_locked` 等 |
+#### 菜品类
+
+| action | 说明 | 权限 | 关键参数 |
+|--------|------|------|----------|
+| `get-menu` | 获取菜品列表 | 登录 | - (返回按权重排序) |
+| `update-menu` | 更新菜品 | admin | menu (JSON 数组) |
+
+#### 统计类
+
+| action | 说明 | 权限 | 关键参数 |
+|--------|------|------|----------|
+| `get-report` | 周月报 | 登录 | type(week/month), from, to |
+| `get-settings` | 系统设置 | 登录 | - |
+| `update-settings` | 更新设置 | admin | key, value |
+
+#### 恢复类
+
+| action | 说明 | 权限 | 关键参数 |
+|--------|------|------|----------|
+| `restore-kv` | 批量恢复 KV | admin | records (JSON 数组) |
 
 ### 错误码
 
 | HTTP | 含义 |
 |------|------|
 | 200 | 成功 |
-| 400 | 参数错误 |
-| 401 | 未登录或凭据错误 |
-| 403 | 无权限（锁定/非管理员/越权） |
+| 400 | 参数错误 / 菜品缺少字段 |
+| 401 | 未登录 / 密码错误 |
+| 403 | 无权限 / 锁定 |
 | 404 | 资源不存在 |
-| 429 | 登录尝试过多，15分钟后再试 |
+| 429 | 登录锁定 (5 次失败，15 分钟) |
 | 500 | 服务器错误 |
-| 503 | KV 数据库读取失败 |
+| 503 | KV 读取失败 |
 
 ---
 
 ## 前端架构
 
-### 状态变量 (`app.js` 顶部)
+### 状态变量
 
 ```js
-var token = null;           // 当前登录令牌
-var currentUser = null;     // 当前用户对象 {id, name, role}
-var allUsers = [];          // 所有用户列表（管理员可见）
-var allOrders = [];         // 当前订单列表
-var settings = {            // 系统设置（从后端加载）
-  orderLocked: false,
-  lunchLocked: false,
-  dinnerLocked: false
-};
-var isBatchSubmitting = false; // 管理员批量提交中
+var token = null;              // 登录令牌
+var currentUser = null;        // 当前用户 {id, name, role}
+var allUsers = [];             // 用户列表
+var allOrders = [];            // 订单列表
+var dishItems = [];            // 菜品列表
+var settings = {};             // 系统设置
+var lunchSelfPick = false;     // 午餐自取减免
+var dinnerSelfPick = false;    // 晚餐自取减免
+var blindLunchPrice = 11;      // 午餐盲盒价
+var blindDinnerPrice = 12;     // 晚餐盲盒价
+var APP_VERSION = ''2.3.5'';   // 版本号
 ```
 
 ### 数据流
 
 ```
-登录 → showMainPage() → loadAllData()
-                          ├── loadSettings()       (首次)
-                          ├── get-orders → allOrders
-                          └── get-users → allUsers (管理员)
-                                    │
-                         renderAll() ←────────────┘
-                          ├── updateTodayStats()  (统计卡片)
-                          └── renderOrders()      (订单列表)
+登录 → showMainPage()
+  ├── loadSettings()    → settings, 自取状态, 盲盒价格
+  ├── loadDishes()      → dishItems, 填充菜单下拉框
+  ├── loadAllData()     → get-orders → allOrders → renderAll()
+  │     ├── updateTodayStats()  → 今日统计 (含自取减免)
+  │     └── renderOrders()     → 本月订单 (午/晚餐分组)
+  └── loadReport('week') → 本周报表 (仅管理员)
 ```
 
 ### 自动刷新
 
-- **订单**: 每 8 秒自动刷新（`ORDERS_REFRESH_INTERVAL`）
-- **窗口聚焦**: 切回页面时立即刷新
-- **提交期间**: `isBatchSubmitting=true` 时暂停刷新
-- **确认对话框状态**: DOM 重建后自动恢复，不影响数据同步
-- **滚动位置**: 刷新时自动保持当前滚动位置
+| 机制 | 说明 |
+|------|------|
+| 8 秒定时 | `ORDERS_REFRESH_INTERVAL = 8000` |
+| 数据哈希 | `JSON.stringify` 对比，未变化跳过 DOM 渲染 |
+| 确认保护 | 确认对话框打开时自动恢复状态 |
+| 滚动保持 | `mainContent.scrollTop` 保存/恢复 |
+| 提交阻塞 | `isBatchSubmitting=true` 时暂停 |
+| 菜单缓存 | `menuOptsCache` 避免重复构建 option HTML |
 
 ### 页面结构
 
 ```
-loginPage         — 登录页（用户名+密码+记住密码）
-mainPage          — 主页面
-├── topbar        — 顶部栏（用户信息+修改密码+退出）
-├── sidebar       — 侧边栏（仅管理员）
-│   ├── 导航链接   — 点餐/统计/订单/用户管理
-│   ├── 全局锁定   — 禁止修改餐品
-│   └── 时段控制   — 午餐/晚餐分别锁定
-├── section-order — 点餐登记面板
-├── section-stats — 今日统计面板
-├── section-orders— 最近七天订单面板
-└── section-admin — 用户管理面板（仅管理员）
-passwordModal    — 修改密码弹窗
-editOrderModal   — 编辑订单弹窗
-toastContainer   — Toast 通知容器
+loginPage          — 流体渐变登录页
+mainPage           — 主页面
+├── topbar         — 顶栏 (用户/角色/版本号/修改密码/刷新/退出)
+├── sidebar        — 侧边栏 (管理员)
+│   ├── 导航        — 点餐/统计/订单/周月报/用户管理
+│   ├── 系统设置    — 全局锁定 + 午/晚餐锁定
+│   ├── 盲盒价格    — 午/晚餐盲盒价格输入
+│   └── 菜品管理    — 添加/删除/改名/改价/权重 (默认折叠)
+├── section-order  — 点餐登记
+├── section-stats  — 今日统计 (含自取减免药丸)
+├── section-orders — 本月订单 (午/晚餐分组)
+├── section-report — 周月报 (仅管理员)
+├── section-dish   — 菜品管理面板
+├── section-admin  — 用户管理 (默认折叠)
+passwordModal      — 修改密码弹窗
+editOrderModal     — 编辑订单弹窗
+toastContainer     — Toast 通知 (最多 3 个)
 ```
 
-### 关键交互流程
+### 管理员 vs 普通用户
 
-#### 登录 & 记住密码
-1. 用户勾选"记住密码" → `saveLoginInfo` 保存 username + password + token + remember=true 到 localStorage
-2. 下次打开 → `tryAutoLogin` 自动用密码登录获取新 token
-3. 退出 → 保留用户名密码在 localStorage，仅清除 token
-4. 修改密码 → `clearLoginInfo` 完全清除
+| 功能 | 管理员 | 普通用户 |
+|------|--------|----------|
+| 给自己订餐 | ✓ | ✓ |
+| 给他人订餐 | ✓ (批量) | ✗ |
+| 修改/删除自己订单 | ✓ | ✓ (未锁定时) |
+| 修改/删除他人订单 | ✓ | ✗ |
+| 标记付款 | ✓ | ✗ |
+| 管理用户 | ✓ | ✗ |
+| 系统设置 | ✓ | ✗ |
+| 菜品管理 | ✓ | ✗ |
+| 周月报 | ✓ | ✗ |
+| 自取减免开关 | ✓ | ✗ |
+| 今日统计 | ✓ | ✓ |
+| 本月订单 | ✓ | ✓ |
+| 侧边栏 | ✓ | ✗ |
 
-#### 普通用户提交订单
-1. 选择日期/餐别/类型 → 填写(自定义) → 点提交
-2. 提交按钮禁用 → 显示"提交中..."
-3. API 返回 → 恢复按钮 + 清空输入 + toast 反馈
+---
 
-#### 管理员批量提交
-1. 勾选用户 → 设餐品类型 → 点"提交订单"
-2. 按钮变红色"确认提交"，显示将提交的人数和餐别
-3. 再次点击确认 → 串行提交每个用户 → 显示进度
-4. 完成 → 统计成功/失败数 → 自动刷新
-5. 5 秒内不确认自动取消
+## 功能详解
 
-#### 编辑订单
-1. 点击订单"修改"按钮 → 弹窗
-2. 可修改：餐别、餐品类型、餐品名称、价格
-3. 跨餐别修改：后端自动迁移 order key
+### 点餐登记
+- **单人**：日期 + 餐别 + 菜品下拉框 (选中自动显示价格)
+- **批量 (管理员)**：勾选用户 → 选择菜品 → 二次确认 → 串行提交，实时进度
+- **日期范围**：±30 天，点击日期栏任意处弹出日历
 
-### Toast 通知系统
+### 今日统计
+- 订单总数、已付/未付数量及金额
+- 自取减免药丸按钮 (标题同行，选中蓝底)
+- 开启后当天对应餐别每单自动 -¥1
 
-```js
-showToast(message, type)
-// type: 'success' | 'error' | 'info'
-```
-- 右下角浮层，2.5~4秒自动消失
-- 入场/出场 CSS 动画
-- 最多同时显示 3 个，超出自动移除最早的
-- 完全替代 `alert()`
+### 本月订单
+- 按日期分组，每天内按午餐/晚餐分组
+- 餐品汇总 + 一键复制
+- 修改餐品/标记付款/删除 (带确认对话框)
+- 确认框在 8 秒刷新期间自动保持状态
+
+### 菜品管理 (管理员)
+- 添加/删除/改名/改价/调权重
+- 菜品下拉框 ¥ 前缀价格显示
+- 权重高排前面
+- 点击"保存菜品"即时生效
+
+### 周月报 (管理员)
+- 本周/本月/自定义日期范围
+- 汇总卡片 (订单数、午/晚餐数、总/已付/未付金额)
+- 人均明细表 (姓名/订单数/已付/金额)
+- 登录自动加载本周数据
+
+### 登录页
+- 蓝橙流体渐变背景 (15s 循环动画)
+- 毛玻璃卡片 (backdrop-filter blur)
+- 青紫渐变图标/按钮/标题
+- 记住密码自动登录 (登录中脉冲动画)
+- 页面切换 0.65s 淡入淡出
 
 ---
 
 ## 认证与安全
 
 ### 密码处理
-
-- **哈希算法**: 自定义 FNV-1a 变体 × 4轮 × 10000次迭代 = 64字符哈希
-- **盐 (Salt)**: `crypto.getRandomValues` 生成 32 字符随机盐
-- **验证**: `hashPassword(password, salt) === storedHash`
+- 算法：FNV-1a 变体 × 4 轮 × 10000 次迭代 = 64 字符哈希
+- Salt：`crypto.getRandomValues` 生成 32 字符随机盐
+- 默认密码：`123456`
 
 ### 会话管理
-
-- **Token**: `crypto.getRandomValues` 生成 64 字符随机令牌
-- **存储**: Token 哈希后 40 字符作为 KV key (`session_{tokenHash}`)
-- **过期**: 24 小时自动过期
-- **验证**: `validateSession(token)` 检查存在性和过期时间
-- **会话清除**: 修改密码或重置密码后，该用户所有旧会话立即失效
+- Token：64 字符随机令牌
+- 存储：Token 哈希后 40 字符作为 KV key
+- 过期：24 小时自动过期
+- 修改密码/重置密码：立即清除所有旧会话
 
 ### 登录保护
+- 5 次失败 → 锁定 15 分钟
+- 失败计数异常不影响登录流程 (静默忽略)
 
-- **失败计数**: 5 次失败 → 锁定 15 分钟
-- **锁定降级**: 失败计数失败不影响登录流程（静默忽略）
-
-### 权限矩阵
-
-| 操作 | 管理员 | 普通用户 |
-|------|--------|----------|
-| 给自己订餐 | ✓ | ✓ |
-| 给他人订餐 | ✓ | ✗ |
-| 修改自己订单 | ✓ | ✓ (未锁时) |
-| 修改他人订单 | ✓ | ✗ |
-| 删除自己订单 | ✓ | ✓ (未锁时) |
-| 删除他人订单 | ✓ | ✗ |
-| 标记付款 | ✓ | ✗ |
-| 管理用户 | ✓ | ✗ |
-| 系统设置 | ✓ | ✗ |
+### XSS 防护
+- 所有用户输入通过 `escapeHtml()` 转义
+- 禁止 Base64 编码
 
 ---
 
 ## 部署
 
 ### 平台要求
+- Retinbox Web Hosting 账号
+- Deno >= 2.8.0
 
-- [Retinbox Web Hosting](https://retiehe.com/)
-- 无需额外构建步骤（纯静态 HTML/JS/CSS + Node.js 云函数）
+### 本地部署
 
-### 部署步骤
+```bash
+# 安装 Deno
+# 首次配置 (交互式，会自动检测项目设置)
+deno -Ar https://host.retiehe.com/cli init
 
-1. **获取 API Key**
-   - Retinbox 管理页面 → API Key → 新建密钥
-   - 存储为环境变量 `RTH_API_KEY` 或项目 `.env` 文件
+# 一键部署
+npm run deploy
 
-2. **创建配置文件** `rth-host.json`:
+# 云函数热更新 (文件保存即部署)
+deno -Ar https://host.retiehe.com/cli watch
+```
+
+### 配置文件
+
+**rth-host.json**:
 ```json
 {
   "build": "",
   "outdir": ".",
-  "site": "your-site-name"
+  "site": "bawei"
 }
 ```
+- `build`: 留空 (纯静态项目无需构建)
+- `outdir`: `"."` 部署根目录全部文件
+- `site`: Retinbox 站点名 (免费域名仅填子域名)
 
-3. **添加部署脚本** 到 `package.json`:
+**package.json**:
 ```json
 {
   "scripts": {
@@ -350,244 +421,192 @@ showToast(message, type)
 }
 ```
 
-4. **执行部署**:
-```bash
-npm run deploy
-```
+---
 
-### 本地开发
+## 自动部署 (GitHub Actions)
 
-云函数 `.node.js` 文件可使用 watch 模式实时同步：
-```bash
-deno -Ar https://host.retiehe.com/cli watch
-```
+每次 push 到 main 分支，自动部署到 Retinbox。
 
-### 默认用户
+### 工作流 (`.github/workflows/deploy.yml`)
+1. checkout 代码
+2. 安装 Deno 2.8.0
+3. 读取 `RTH_API_KEY` secret
+4. 执行 `deno -Ar https://host.retiehe.com/cli deploy`
+5. CLI 读取 `rth-host.json` 配置
+6. 打包上传所有文件到 Retinbox
 
-首次访问时自动创建，默认密码均为 `123456`：
+### 配置步骤
+1. Retinbox 管理页 → API 密钥 → 新建密钥 → 复制
+2. GitHub → Settings → Secrets → Actions → New secret
+   - Name: `RTH_API_KEY`
+   - Value: 粘贴密钥 (不要有多余换行)
+3. 修改 `rth-host.json` 中的 `site` 为实际站点名
+4. Push 到 main 即触发
 
-| 用户名 | 角色 |
-|--------|------|
-| 陈立昊 | 管理员 |
-| 王宇翔 | 管理员 |
-| 王里庚 | 普通用户 |
-| 王晨强 | 普通用户 |
-| 康子阔 | 普通用户 |
-| 刘彦宏 | 普通用户 |
-| 卫佳旺 | 普通用户 |
-| 张晓旭 | 普通用户 |
-| 韩志芳 | 普通用户 |
-| 胡昌雨 | 普通用户 |
+### 版本号管理
+- `index.html` 中 CSS/JS 引用带 `?v=版本号` 参数
+- `app.js` 中 `APP_VERSION` 常量
+- 每次修改代码后同步更新三处版本号
+- 部署后查看顶部栏徽章确认版本
+
+---
+
+## 数据恢复
+
+### 自动恢复
+- 用户数据丢失 → `initDefaultUsers` 自动重建 10 个默认用户
+- 菜品数据丢失 → `getMenu` 自动重建 48 款默认菜品
+
+### 手动恢复 (从备份)
+1. 部署完成后访问 `https://你的域名/restore.html`
+2. 用记事本打开 `bawei-kv.json`，全选复制
+3. 粘贴到恢复工具页面文本框
+4. 点击"恢复数据"
+5. 等待提示"已恢复 N 条数据"
+6. 刷新主页面，数据全部恢复
+
+恢复的数据包括：用户、订单、菜品菜单、系统设置、登录会话。
 
 ---
 
 ## 常见维护操作
 
 ### 添加新用户
-1. 管理员登录 → 侧边栏"用户管理"
-2. 输入用户名、选择角色 → 点"添加用户"
-3. 默认密码：`123456`
+管理员 → 侧边栏「用户管理」→ 输入用户名 → 选择角色 → 添加。默认密码 `123456`。
 
-### 重置用户密码
-1. 用户管理 → 目标用户 → 点"重置密码"
-2. 确认 → 密码重置为 `123456`
+### 重置密码
+管理员 → 用户管理 → 目标用户 → 重置密码 → 确认为 `123456`。
 
-### 暂时禁止点餐
-- **全局锁定**: 侧边栏 → "禁止用户修改餐品"（阻止修改/删除，但仍可提交新订单）
-- **午餐/晚餐分别锁定**: 侧边栏 → "禁止午餐/晚餐点餐"（阻止提交）
+### 管理菜品
+管理员 → 侧边栏「菜品管理」(默认折叠，点击展开)：
+- 添加：点「+ 添加餐品」
+- 改名：直接修改名称输入框
+- 改价：修改价格输入框 (¥ 前缀)
+- 调顺序：修改权重数字 (越大越靠前)
+- 删除：点 × 按钮
+- 生效：点「保存菜品」
+
+### 锁定点餐
+- 全局锁定：侧边栏「禁止用户修改餐品」(阻止修改/删除，仍可提交)
+- 午餐/晚餐锁定：阻止对应餐别的新订单提交
 
 ### 修改盲盒价格
-管理员登录 → 侧边栏"盲盒价格设置" → 修改午餐或晚餐盲盒价格（0.5~200 元）→ 按 Enter 或失焦生效。价格立即在点餐登记和批量提交中同步。
+侧边栏 → 午餐/晚餐盲盒价格输入框 → 失焦或回车生效。
 
-### 添加新餐品类型
-1. `index.html`: 在 `itemType` select 中添加新 `<option>`
-2. `app.js`: 在提交逻辑和编辑逻辑中处理新类型
-3. `api.node.js`: 在 `handleCreateOrder` 中处理定价
+### 自取减免
+今日统计标题右侧药丸按钮 → 点击切换 → 当天对应餐别每单自动 -¥1。
 
-### 调整自动刷新频率
-修改 `app.js` 顶部的常量：
+### 调整刷新频率
+修改 `app.js` 顶部常量：
 ```js
-var MIN_REFRESH_INTERVAL = 3000;   // 最小刷新间隔 3秒
-var ORDERS_REFRESH_INTERVAL = 8000; // 订单刷新间隔 8秒
+var ORDERS_REFRESH_INTERVAL = 8000;   // 默认 8 秒
+var MIN_REFRESH_INTERVAL = 3000;       // 最小间隔 3 秒
 ```
+
+---
+
+## 开发规范
+
+### 前端
+- 纯原生 JS，零框架依赖
+- 全局状态变量集中顶部声明
+- DOM 操作优先事件委托，避免全量 `innerHTML` 重建
+- 哈希对比跳过无变化渲染
+- Toast 最多 3 个，超出自动移除
+- 确认对话框自动状态保持
+
+### 后端
+- 云函数使用 Retinbox Node.js 环境
+- 无 npm 包支持，仅内置模块
+- API 统一 `sendJSON()` 响应
+- KV 读写通过 `kv-adapter.node.js` 抽象层
+- 权限在 API 层校验，不信任前端
+
+### 数据安全
+- 禁止 Base64 编码
+- 所有用户输入 `escapeHtml()` 转义
+- 密码 SHA 哈希 + Salt 存储
+- Token 加密存储，修改密码立即清除
+- API 响应 `Cache-Control: no-store`
+
+### 兼容性
+- 浏览器：Chrome/Edge/Safari 最新版
+- 移动端：≤768px 响应式布局
+- 云函数：Retinbox Node.js 环境
+
+---
+
+## 常见问题
+
+### 网站显示旧版本
+Ctrl+Shift+R 强制刷新。如果仍不行，检查顶部栏版本号是否最新。版本号没变说明部署未完成。
+
+### 订单提交失败
+1. 确认菜品下拉框有选项 (等待菜单加载)
+2. 已选择菜品 (menuId 不为空)
+3. 日期在 ±30 天范围内
+
+### 保存菜品失败
+1. 确认至少有一个菜品
+2. 名称不为空，价格为有效数字
+3. 检查网络连接，查看 toast 提示
+
+### 数据丢失
+1. 检查 Retinbox 管理后台 KV 数据库状态
+2. 使用 restore.html 从备份恢复
+3. 系统会自动重建默认用户和菜品
+
+### 部署失败
+1. 确认 `RTH_API_KEY` secret 设置正确 (无多余换行)
+2. 确认 `rth-host.json` site 名称正确
+3. 查看 GitHub Actions 日志
+
+### 缓存问题
+- 静态文件：`?v=版本号` 参数强制刷新
+- API 数据：`Cache-Control: no-store` 禁止缓存
+- HTML：`<meta>` no-cache 标签
+- 每次更新代码务必同步更新版本号
 
 ---
 
 ## 变更记录
 
-### v2.3 (当前版本)
-- 新增：版本号徽章（黑底白字椭圆，顶部栏可见），缓存刷新机制（?v=版本号）
-- 新增：API 响应 no-cache 头，杜绝浏览器缓存旧数据
-- 新增：GitHub Actions 自动部署（push main 即部署到 Retinbox）
-- 新增：午餐/晚餐自取减免药丸按钮（今日统计标题同行，每单 ¥1 减免）
-- 优化：餐别时间精确到分钟（8:00-11:30 午餐 / 11:30-20:30 晚餐 / 20:30-8:00 明天午餐）
-- 优化：保存菜品增加空数据校验和 toast 提示
-- 优化：移动端顶栏自适应、自取按钮缩放
-- 变更：自取按钮移至统计面板标题行，改为药丸样式
-- 变更：本月所有日期均按午餐/晚餐分组显示
-- 变更：日期范围限制 ±30 天
+### v2.3 (2026-07-31)
+- 新增：版本号徽章 + 缓存刷新 `?v=` 参数 + HTML no-cache meta
+- 新增：API no-store 响应头，杜绝数据缓存
+- 新增：GitHub Actions 自动部署
+- 新增：午餐/晚餐自取减免药丸按钮 (每单 ¥1，统计标题同行)
+- 新增：KV 数据恢复接口 + restore.html 恢复工具
+- 新增：本月所有日期午餐/晚餐分组显示
+- 优化：餐别按分钟精度 (8:00-11:30/11:30-20:30/20:30-8:00)
+- 优化：保存菜品空数据校验 + toast
+- 优化：移动端顶栏/自取按钮/表格自适应
+- 变更：日期范围 ±30 天
+- 变更：自取按钮从下方移到标题行，改为药丸样式
 
 ### v2.2
-- 新增：48款菜品管理系统，统一下拉框点餐，选中自动回显价格
-- 新增：菜品管理面板（添加/删除/改名/改价/权重排序），¥前缀价格
-- 新增：周月报统计（本周/本月/自定义日期，汇总卡片+人均明细+日期导航）
-- 新增：午餐/晚餐自取优惠开关（每单自动 ¥1 减免）
-- 新增：全局刷新按钮（黑底白字，保持滚动位置）
-- 新增：GitHub Actions 自动部署（push main 即部署到 Retinbox）
-- 新增：移动端响应式适配（侧边栏抽屉、表格横向滚动、顶栏自适应）
-- 优化：登录页流体渐变动画+毛玻璃卡片，日期范围限制±30天
-- 优化：订单数据哈希对比跳过无变化渲染，菜品HTML缓存
-- 优化：20:00后自动选择明天午餐，价格步进改为个位数
-- 优化：本月所有日期均按午餐/晚餐分组显示
-- 变更：移除备注字段，用户管理和菜品管理默认折叠
-- 变更：周月报仅管理员可见，订单列表7天→当月，取消自动删除
-- 变更：不再限制未来日期提交
-- 修复：数据损坏自动重建、旧会话即时清除、价格NaN保护等
-- 新增：48款菜品管理系统，统一下拉框点餐，选中自动回显价格
-- 新增：菜品管理面板（添加/删除/改名/改价/权重排序）
-- 新增：周月报统计（本周/本月/自定义日期，汇总卡片+人均明细+日期导航）
-- 新增：全局刷新按钮（黑底白字，保持滚动位置）
-- 新增：移动端响应式适配（侧边栏抽屉、表格横向滚动、顶栏自适应）
-- 优化：登录页流体渐变动画+毛玻璃卡片，日期点击整栏弹出日历
-- 优化：订单数据哈希对比跳过无变化渲染，菜品HTML缓存
-- 优化：20:00后自动选择明天午餐，价格步进改为个位数
-- 变更：移除备注字段，用户管理和菜品管理默认折叠
-- 变更：周月报仅管理员可见，订单列表7天→当月，取消自动删除
-- 变更：不再限制未来日期提交，日期导航箭头切换周/月
-- 修复：数据损坏自动重建、旧会话即时清除、价格NaN保护等
+- 48 款菜品管理系统，统一下拉框点餐
+- 菜品管理面板 (添加/删除/改名/改价/权重)
+- 周月报统计 (汇总卡片 + 人均明细 + 日期导航)
+- 全局刷新按钮，登录页流体渐变动画
+- 订单数据哈希跳过无变化渲染，菜品 HTML 缓存
+- 移除备注字段，用户管理/菜品管理默认折叠
+- 周月报仅管理员可见，订单 7 天→当月
 
-### v2.1 (当前版本)
-- ✅ 新增：管理员可自定义盲盒固定价格（侧边栏设置，实时生效）
-- ✅ 美化：下拉框统一自定义箭头样式
-- ✅ 美化：侧边栏导航图标统一使用主题蓝色
-- ✅ 修复：用户数据损坏时自动重建默认用户（不再永久卡死）
-- ✅ 修复：修改密码/重置密码后旧会话立即失效（安全加固）
-- ✅ 修复：价格显示 NaN 保护
-- ✅ 修复：设置开关网络错误时自动回滚 checkbox 状态
-- ✅ 性能：过期订单清理仅在获取订单时执行，不再每次 API 请求都扫全量 KV
-- ✅ 性能：获取订单从 O(7×N) 双层循环优化为 O(N) 单次遍历
-- ✅ 性能：订单刷新时保持滚动位置
-- ✅ 交互：确认对话框激活时自动暂停刷新，防止确认状态因 DOM 重建而丢失
-- ✅ 交互：确认对话框状态在 DOM 重建时自动保留，不影响实时数据同步
-- ✅ 交互：管理员批量提交增加二次确认（红色按钮 + 5 秒超时自动取消）
-- ✅ 交互：Toast 通知最多 3 个，超出自动移除最早的
-- ✅ 代码质量：清理未使用的变量和死代码
+### v2.1
+- 管理员自定义盲盒价格，下拉框美化
+- 确认框状态保留 (不拦截刷新)
+- 批量提交二次确认，Toast 数量限制
 
-### v2.0 (当前版本)
-- ✅ 记住密码 & 自动登录优化（token过期自动用密码重登）
-- ✅ 提交订单 loading 状态 & 防重复提交
-- ✅ 今日订单区分午餐/晚餐 & 汇总统计 & 一键复制
-- ✅ Toast 通知系统替代 alert
-- ✅ 确认操作 loading 动效
-- ✅ 午餐/晚餐分别禁止点餐
-- ✅ 餐别自动选择（上午午餐/下午晚餐）
-- ✅ 编辑订单支持修改餐别
-
-
-## 自动部署
-
-### GitHub Actions 配置
-
-已配置 GitHub Actions，每次 push 到 main 分支自动部署到 Retinbox。
-
-**前置条件：**
-1. GitHub Secrets 中已设置 `RTH_API_KEY`（Retinbox API 密钥）
-2. `rth-host.json` 中 `site` 字段为 Retinbox 站点名（免费域名只填子域名部分）
-3. GitHub Actions 使用 Deno 2.8.0 运行 Retinbox CLI
-
-**部署流程：**
-```
-git push → GitHub Actions 触发 → deno run CLI → 上传文件到 Retinbox
-```
-
-**注意事项：**
-- 不要修改 `.github/workflows/deploy.yml` 中的 Deno 版本（固定 2.8.0）
-- RTH_API_KEY 设置时避免多余换行符，否则 CLI 验证失败
-- 免费域名 site 只写子域名（如 `bawei`），不要写完整域名
-
-### 本地部署
-
-```bash
-# 初始化（首次）
-deno -Ar https://host.retiehe.com/cli init
-
-# 部署
-npm run deploy
-
-# 云函数热更新（文件保存自动部署）
-deno -Ar https://host.retiehe.com/cli watch
-```
-
----
-
-## 开发约束与规范
-
-### 前端
-- **纯原生 JS**，无框架依赖。所有逻辑在 `app.js` 中
-- **DOM 操作**：避免直接 `innerHTML` 重建全量 DOM，优先局部更新
-- **状态管理**：全局变量集中声明在文件顶部，命名清晰
-- **事件绑定**：优先事件委托（如 `ordersContainer` 的 click 委托）
-- **自动刷新**：8 秒间隔，有哈希对比跳过无变化渲染
-- **确认对话框**：DOM 重建时自动恢复状态，确认后立即隐藏防残留
-- **Toast 通知**：最多 3 个，超出自动移除
-
-### 后端
-- **云函数**：Retinbox Node.js 云函数（`.node.js` 后缀）
-- **数据库**：Retinbox KV 存储，数据库名 `ordering`
-- **认证**：自定义密码哈希（FNV-1a）+ 随机 Salt + 24h 会话
-- **权限**：管理员 / 普通用户两级，API 层校验
-- **API 规范**：POST 请求，`action` 参数路由，JSON 响应
-
-### 数据安全
-- **禁止 Base64**：项目任何位置不得使用 Base64 编码
-- **XSS 防护**：所有用户输入通过 `escapeHtml()` 转义
-- **密码存储**：SHA 哈希 + Salt，不明文存储
-- **会话管理**：Token 加密存储，24h 过期，修改密码立即清除
-
-### 菜品管理
-- 菜品存储在 `settings_menu` KV key 中，JSON 数组格式
-- 每项包含 `id`、`name`、`price`、`weight`
-- 权重越高排序越靠前，通过 `renderDishManager()` 渲染
-- 修改后需点击"保存菜品"，调用 `update-menu` API
-
-### 兼容性
-- 目标浏览器：Chrome/Edge/Safari 最新版
-- 移动端：≤768px 响应式，侧边栏抽屉，表格横向滚动
-- 云函数环境：Retinbox Node.js，无 npm 包支持
-
----
-
-### 数据恢复
-
-访问 estore.html，粘贴 KV 备份 JSON，点击恢复。仅管理员可用。
-
-## 常见问题
-
-### 订单提交失败
-1. 检查菜品下拉框是否有选项（首次使用需等待菜单加载）
-2. 确认已选择菜品（menuId 不为空）
-3. 检查日期是否在允许范围内（±30天）
-
-### 部署失败
-1. 确认 RTH_API_KEY 已正确设置（无多余换行）
-2. 确认 `rth-host.json` 中 site 名称正确
-3. 查看 GitHub Actions 日志定位具体错误
-
-### 数据恢复
-- 用户数据损坏时系统自动重建默认用户（admin_chenli 等）
-- 菜单数据损坏时自动重建默认菜品列表
-- 所有默认密码为 `123456`
-
-### 菜品添加后看不到
-- 确认已点击"保存菜品"按钮
-- 检查菜品管理面板是否已展开（默认折叠）
-- 刷新页面后检查
+### v2.0
+- 记住密码自动登录，早/晚分时段锁
+- 今日订单午餐/晚餐分组 + 汇总 + 复制
+- Toast 替代 alert，loading 动效
+- 餐别自动选择，编辑支持修改餐别
+- 批量提交串行进度
 
 ### v1.0
-- 基础登录/注册
-- 盲盒/自定义点餐
-- 管理员批量订餐
-- 付款状态管理
-- 七日订单历史
-- 用户管理 CRUD
+- 基础登录/注册，盲盒/自定义点餐
+- 管理员批量订餐，付款状态管理
+- 七日订单历史，用户管理 CRUD
 - 全局锁定开关
