@@ -27,7 +27,7 @@
   var MIN_REFRESH_INTERVAL = 3000;
   var USERS_REFRESH_INTERVAL = 30000;
   var ORDERS_REFRESH_INTERVAL = 8000;
-  var APP_VERSION = '2.4.0';
+  var APP_VERSION = '2.5.0';
   var COLLAPSED_KEY = 'ordering_collapsed_sections';
   var DEFAULT_SAFE_USERS = [
     { id: 'admin_chenli', name: '陈立昊', role: 'admin' },
@@ -188,6 +188,16 @@
     return !!order.refunded;
   }
 
+  function getOrderItems(order) {
+    if (Array.isArray(order.items) && order.items.length > 0) return order.items;
+    return [{
+      menuId: order.menuId || '',
+      name: order.itemName || '未知',
+      price: parseFloat(order.price) || 0,
+      quantity: 1
+    }];
+  }
+
   function getMealTypeName(type) {
     return type === 'lunch' ? '午餐' : '晚餐';
   }
@@ -337,7 +347,7 @@
     var html = '<option value="">-- 请选择餐品 --</option>';
     for (var i = 0; i < dishItems.length; i++) {
       var m = dishItems[i];
-      html += '<option value="' + escapeHtml(m.id) + '" data-price="' + m.price + '">' + escapeHtml(m.name) + ' ¥' + m.price + '</option>';
+      html += '<option value="' + escapeHtml(m.id) + '" data-price="' + m.price + '">' + escapeHtml(m.name) + '</option>';
     }
     if (singleSelect) singleSelect.innerHTML = html;
     if (editSelect) editSelect.innerHTML = html;
@@ -357,7 +367,8 @@
     var opt = sel.options[sel.selectedIndex];
     if (opt && opt.value) {
       var price = opt.getAttribute('data-price');
-      hint.textContent = '价格：¥' + price;
+      var qty = selectId === 'singleDishItem' ? (parseInt(document.getElementById('singleQty').value) || 1) : 1;
+      hint.textContent = '价格：¥' + ((parseFloat(price) || 0) * qty) + (qty > 1 ? '（' + qty + ' 份）' : '');
     } else {
       hint.textContent = '';
     }
@@ -572,6 +583,7 @@
       document.getElementById('section-report').classList.remove('hidden');
       document.getElementById('userSelectGroup').style.display = '';
       document.getElementById('singleDishGroup').style.display = 'none';
+      document.getElementById('singleDishItem').removeAttribute('required');
     } else {
       document.getElementById('sidebar').classList.add('hidden');
       document.getElementById('section-dish').classList.add('hidden');
@@ -579,6 +591,7 @@
       document.getElementById('section-report').classList.add('hidden');
       document.getElementById('userSelectGroup').style.display = 'none';
       document.getElementById('singleDishGroup').style.display = '';
+      document.getElementById('singleDishItem').setAttribute('required', 'required');
     }
 
     // 设置日期默认值
@@ -640,9 +653,7 @@
 
   // ========== 全局刷新按钮 ==========
   document.getElementById('refreshBtn').addEventListener('click', function() {
-    lastRefreshTime = 0;
-    lastUsersLoadTime = 0;
-    loadAllData();
+    refreshDataNow();
     showToast('数据已刷新', 'success');
   });
 
@@ -720,6 +731,12 @@
         loadUsersForAdmin();
       }
     }
+  }
+
+  function refreshDataNow() {
+    lastRefreshTime = 0;
+    lastUsersLoadTime = 0;
+    loadAllData();
   }
 
   function loadUsersForAdmin() {
@@ -804,21 +821,63 @@
   // ========== 填充批量订餐表格 ==========
   function collectBatchOrderDrafts() {
     var drafts = {};
-    var rows = document.querySelectorAll('.batch-order-row');
+    var rows = document.querySelectorAll('.batch-item-row');
     for (var i = 0; i < rows.length; i++) {
       var row = rows[i];
+      var userId = row.getAttribute('data-user-id');
+      if (!userId) continue;
+      if (!drafts[userId]) drafts[userId] = { checked: false, items: [] };
       var checkbox = row.querySelector('.user-checkbox');
-      if (!checkbox) continue;
-      var userId = checkbox.value;
+      if (checkbox) drafts[userId].checked = checkbox.checked;
       var menuSelect = row.querySelector('.dish-select');
-      drafts[userId] = { checked: checkbox.checked, dishId: menuSelect ? menuSelect.value : '' };
+      var qtyInput = row.querySelector('.item-qty');
+      var idx = parseInt(row.getAttribute('data-item-index')) || 0;
+      drafts[userId].items[idx] = {
+        dishId: menuSelect ? menuSelect.value : '',
+        qty: parseInt(qtyInput ? qtyInput.value : '1') || 1
+      };
     }
     return drafts;
   }
 
-  function populateBatchOrderTable() {
+  function buildBatchItemRow(user, item, idx, checked) {
+    item = item || { dishId: '', qty: 1 };
+    var qty = parseInt(item.qty) || 1;
+    if (qty < 1) qty = 1;
+    var optsHtml = menuOptsCache;
+    if (item.dishId) {
+      optsHtml = optsHtml.replace('value="' + escapeHtml(item.dishId) + '"', 'value="' + escapeHtml(item.dishId) + '" selected');
+    }
+    var priceText = '-';
+    if (item.dishId) {
+      var mi = getDishById(item.dishId);
+      if (mi) priceText = '¥' + ((parseFloat(mi.price) || 0) * qty);
+    }
+    var row = document.createElement('div');
+    row.className = 'batch-order-row batch-item-row' + (idx === 0 ? ' is-first-item' : '');
+    row.setAttribute('data-user-id', user.id);
+    row.setAttribute('data-item-index', idx);
+    var checkboxHtml = idx === 0
+      ? '<input type="checkbox" class="user-checkbox" value="' + escapeHtml(user.id) + '"' + (checked ? ' checked' : '') + '>'
+      : '<button type="button" class="item-remove-btn" data-action="remove-item" data-user-id="' + escapeHtml(user.id) + '" data-item-index="' + idx + '" title="删除餐食">×</button>';
+    row.innerHTML =
+      '<span class="col-checkbox">' + checkboxHtml + '</span>' +
+      '<span class="col-name">' + (idx === 0 ? escapeHtml(user.name) : '') + '</span>' +
+      '<span class="col-menu"><select class="dish-select">' + optsHtml + '</select></span>' +
+      '<span class="col-price-cell">' +
+        '<span class="dish-price-display">' + priceText + '</span>' +
+        '<span class="item-qty-wrap">' +
+          '<button type="button" class="qty-btn" data-action="qty-minus" data-user-id="' + escapeHtml(user.id) + '" data-item-index="' + idx + '">−</button>' +
+          '<input type="number" class="item-qty" value="' + qty + '" min="1">' +
+          '<button type="button" class="qty-btn" data-action="qty-plus" data-user-id="' + escapeHtml(user.id) + '" data-item-index="' + idx + '">+</button>' +
+        '</span>' +
+      '</span>';
+    return row;
+  }
+
+  function populateBatchOrderTable(overrideDrafts) {
     var container = document.getElementById('batchOrderRows');
-    var drafts = collectBatchOrderDrafts();
+    var drafts = overrideDrafts || collectBatchOrderDrafts();
     var fragment = document.createDocumentFragment();
 
     // 构建菜单选项
@@ -826,39 +885,58 @@
       menuOptsCache = '<option value="">-- 选择 --</option>';
       for (var k = 0; k < dishItems.length; k++) {
         var mi = dishItems[k];
-        menuOptsCache += '<option value="' + escapeHtml(mi.id) + '" data-price="' + mi.price + '">' + escapeHtml(mi.name) + ' ¥' + mi.price + '</option>';
+        menuOptsCache += '<option value="' + escapeHtml(mi.id) + '" data-price="' + mi.price + '">' + escapeHtml(mi.name) + '</option>';
       }
     }
 
     container.innerHTML = '';
     for (var i = 0; i < allUsers.length; i++) {
       var user = allUsers[i];
-      var draft = drafts[user.id];
-      var dishId = draft ? draft.dishId : '';
-      var checked = draft ? draft.checked : false;
-      var row = document.createElement('div');
-      row.className = 'batch-order-row' + (checked ? ' is-selected' : '');
-      row.dataset.userId = user.id;
-      // 注入 selected 属性
-      var optsHtml = menuOptsCache;
-      if (dishId) {
-        optsHtml = optsHtml.replace('value="' + escapeHtml(dishId) + '"', 'value="' + escapeHtml(dishId) + '" selected');
+      var draft = drafts[user.id] || { checked: false, items: [{ dishId: '', qty: 1 }] };
+      if (!draft.items || draft.items.length === 0) draft.items = [{ dishId: '', qty: 1 }];
+      var group = document.createElement('div');
+      group.className = 'batch-user-group';
+      group.setAttribute('data-user-id', user.id);
+      for (var j = 0; j < draft.items.length; j++) {
+        group.appendChild(buildBatchItemRow(user, draft.items[j], j, draft.checked));
       }
-      row.innerHTML =
-        '<span class="col-checkbox">' +
-          '<input type="checkbox" class="user-checkbox" value="' + escapeHtml(user.id) + '"' + (checked ? ' checked' : '') + '>' +
-        '</span>' +
-        '<span class="col-name">' + escapeHtml(user.name) + '</span>' +
-        '<span class="col-menu">' +
-          '<select class="dish-select">' + optsHtml + '</select>' +
-        '</span>' +
-        '<span class="col-price-cell">' +
-          '<span class="dish-price-display">-</span>' +
-        '</span>';
-      fragment.appendChild(row);
+      var addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.className = 'btn btn-ghost btn-small add-item-btn';
+      addBtn.setAttribute('data-action', 'add-item');
+      addBtn.setAttribute('data-user-id', user.id);
+      addBtn.textContent = '+ 添加餐食';
+      (function(uid, grp) {
+        addBtn.onclick = function() {
+          var drafts = collectBatchOrderDrafts();
+          if (!drafts[uid]) drafts[uid] = { checked: false, items: [] };
+          drafts[uid].items.push({ dishId: '', qty: 1 });
+          var checkbox = grp.querySelector('.user-checkbox');
+          if (checkbox) drafts[uid].checked = checkbox.checked;
+          populateBatchOrderTable(drafts);
+        };
+      })(user.id, group);
+      group.appendChild(addBtn);
+      fragment.appendChild(group);
     }
     container.appendChild(fragment);
     updateSelectedCount();
+  }
+
+  function updateBatchRowPrice(row) {
+    if (!row) return;
+    var select = row.querySelector('.dish-select');
+    var qtyInput = row.querySelector('.item-qty');
+    var priceCell = row.querySelector('.dish-price-display');
+    var qty = parseInt(qtyInput ? qtyInput.value : '1') || 1;
+    if (qty < 1) qty = 1;
+    if (qtyInput) qtyInput.value = qty;
+    var opt = select && select.options[select.selectedIndex];
+    if (priceCell && opt && opt.value) {
+      priceCell.textContent = '¥' + ((parseFloat(opt.getAttribute('data-price')) || 0) * qty);
+    } else if (priceCell) {
+      priceCell.textContent = '-';
+    }
   }
 
   // ========== 更新已选计数 ==========
@@ -895,6 +973,8 @@
       updateSelectedCount();
     } else if (target.classList.contains('user-checkbox')) {
       updateSelectedCount();
+    } else if (target.classList.contains('dish-select') || target.classList.contains('item-qty')) {
+      updateBatchRowPrice(target.closest('.batch-item-row'));
     }
   });
 
@@ -917,7 +997,31 @@
   document.getElementById('batchOrderRows').addEventListener('click', function(e) {
     var target = e.target;
     var row = target.closest('.batch-order-row');
+    var action = target.getAttribute && target.getAttribute('data-action');
     if (!row) return;
+    if (action === 'qty-minus' || action === 'qty-plus') {
+      var qtyInput = row.querySelector('.item-qty');
+      var qty = parseInt(qtyInput.value) || 1;
+      qty = action === 'qty-minus' ? Math.max(1, qty - 1) : qty + 1;
+      qtyInput.value = qty;
+      updateBatchRowPrice(row);
+      return;
+    }
+    if (action === 'remove-item') {
+      var userId = target.getAttribute('data-user-id');
+      var idx = parseInt(target.getAttribute('data-item-index')) || 0;
+      var drafts = collectBatchOrderDrafts();
+      if (drafts[userId] && drafts[userId].items) {
+        drafts[userId].items.splice(idx, 1);
+        if (drafts[userId].items.length === 0) drafts[userId].items = [{ dishId: '', qty: 1 }];
+      }
+      var currentChecked = {};
+      var checkboxes = document.querySelectorAll('.user-checkbox');
+      for (var ci = 0; ci < checkboxes.length; ci++) currentChecked[checkboxes[ci].value] = checkboxes[ci].checked;
+      for (var uid in drafts) drafts[uid].checked = currentChecked[uid] === true;
+      populateBatchOrderTable(drafts);
+      return;
+    }
     // 如果点击的是 select、input、checkbox 等交互元素，不处理
     if (target.tagName === 'SELECT' || target.tagName === 'INPUT' || target.tagName === 'LABEL') return;
     var checkbox = row.querySelector('.user-checkbox');
@@ -1023,7 +1127,7 @@
     apiRequest('POST', 'create-order', data).then(function(result) {
       if (result.success) {
         closeEditModal();
-        loadAllData();
+        refreshDataNow();
       } else {
         errorEl.textContent = result.message || '修改失败';
       }
@@ -1043,8 +1147,11 @@
   function getMealSummary(orders) {
     var counts = {};
     for (var i = 0; i < orders.length; i++) {
-      var name = orders[i].itemName || '未知';
-      counts[name] = (counts[name] || 0) + 1;
+      var items = getOrderItems(orders[i]);
+      for (var k = 0; k < items.length; k++) {
+        var name = items[k].name || '未知';
+        counts[name] = (counts[name] || 0) + (parseInt(items[k].quantity) || 1);
+      }
     }
     var parts = [];
     var names = Object.keys(counts);
@@ -1239,7 +1346,14 @@
       html += '<div class="order-card">';
       html += '<span class="order-user">' + escapeHtml(o.personName) + '</span>';
       html += '<span class="order-detail">';
-      html += '<span class="item-name">' + escapeHtml(o.itemName) + '</span>';
+      var orderItems = getOrderItems(o);
+      var itemTexts = [];
+      for (var oi = 0; oi < orderItems.length; oi++) {
+        var oiName = orderItems[oi].name || '未知';
+        var oiQty = parseInt(orderItems[oi].quantity) || 1;
+        itemTexts.push(escapeHtml(oiName) + (oiQty > 1 ? ' × ' + oiQty : ''));
+      }
+      html += '<span class="item-name">' + itemTexts.join('、') + '</span>';
       html += '</span>';
       var receivable = getOrderReceivable(o);
       var discount = getOrderDiscount(o);
@@ -1362,7 +1476,7 @@
       if (actionBtn) actionBtn.classList.remove('hidden');
       withConfirmFeedback(target, function() {
         return apiRequest('POST', 'update-payment', { orderId: orderId, paid: true })
-          .then(function(result) { if (result.success) { loadAllData(); return true; } else { showToast(result.message || '操作失败', 'error'); return false; } });
+          .then(function(result) { if (result.success) { refreshDataNow(); return true; } else { showToast(result.message || '操作失败', 'error'); return false; } });
       }, '已标记为已付');
       return;
     }
@@ -1375,7 +1489,7 @@
       if (actionBtn) actionBtn.classList.remove('hidden');
       withConfirmFeedback(target, function() {
         return apiRequest('POST', 'update-payment', { orderId: orderId, paid: false })
-          .then(function(result) { if (result.success) { loadAllData(); return true; } else { showToast(result.message || '操作失败', 'error'); return false; } });
+          .then(function(result) { if (result.success) { refreshDataNow(); return true; } else { showToast(result.message || '操作失败', 'error'); return false; } });
       }, '已取消已付');
       return;
     }
@@ -1407,8 +1521,7 @@
         return apiRequest('POST', 'refund-order', { orderId: orderId })
           .then(function(result) {
             if (result.success) {
-              lastRefreshTime = 0;
-              loadAllData();
+              refreshDataNow();
               return true;
             } else {
               showToast(result.message || '退款失败', 'error');
@@ -1445,7 +1558,7 @@
       if (actionBtn) actionBtn.classList.remove('hidden');
       withConfirmFeedback(target, function() {
         return apiRequest('POST', 'delete-order', { orderId: orderId })
-          .then(function(result) { if (result.success) { loadAllData(); return true; } else { showToast(result.message || '删除失败', 'error'); return false; } });
+          .then(function(result) { if (result.success) { refreshDataNow(); return true; } else { showToast(result.message || '删除失败', 'error'); return false; } });
       }, '订单已删除');
       return;
     }
@@ -1476,7 +1589,7 @@
       if (actionBtn) actionBtn.classList.remove('hidden');
       withConfirmFeedback(target, function() {
         return apiRequest('POST', 'delete-orders-by-date', { date: date })
-          .then(function(result) { if (result.success) { loadAllData(); return true; } else { showToast(result.message || '删除失败', 'error'); return false; } });
+          .then(function(result) { if (result.success) { refreshDataNow(); return true; } else { showToast(result.message || '删除失败', 'error'); return false; } });
       }, '当天订单已删除');
       return;
     }
@@ -1527,8 +1640,8 @@
       var checkedRows = [];
       for (var i = 0; i < rows.length; i++) {
         var checkbox = rows[i].querySelector('.user-checkbox');
-        if (checkbox && checkbox.checked) {
-          checkedRows.push(rows[i]);
+        if (checkbox && checkbox.checked && checkedRows.indexOf(checkbox.value) === -1) {
+          checkedRows.push(checkbox.value);
         }
       }
 
@@ -1582,22 +1695,27 @@
           submitBtn.disabled = false;
           submitBtn.textContent = '提交订单';
           // 强制刷新订单数据（清除间隔限制）
-          lastRefreshTime = 0;
-          loadAllData();
+          refreshDataNow();
           setTimeout(function() { statusEl.classList.add('hidden'); }, 3000);
           return;
         }
-        var row = checkedRows[completedCount];
-        var userId = row.querySelector('.user-checkbox').value;
-        var menuSelect = row.querySelector('.dish-select');
-        var dishId = menuSelect ? menuSelect.value : '';
-        if (!dishId) { failedCount++; completedCount++; submitNext(); return; }
+        var userId = checkedRows[completedCount];
+        var userRows = document.querySelectorAll('.batch-item-row[data-user-id="' + userId + '"]');
+        var items = [];
+        for (var ri = 0; ri < userRows.length; ri++) {
+          var menuSelect = userRows[ri].querySelector('.dish-select');
+          var qtyInput = userRows[ri].querySelector('.item-qty');
+          var dishId = menuSelect ? menuSelect.value : '';
+          var qty = parseInt(qtyInput ? qtyInput.value : '1') || 1;
+          if (dishId) items.push({ menuId: dishId, quantity: qty });
+        }
+        if (items.length === 0) { failedCount++; completedCount++; submitNext(); return; }
         var data = {
           userId: userId,
           date: date,
           mealType: mealType,
           itemType: 'menu',
-          menuId: dishId
+          items: items
         };
         
         apiRequest('POST', 'create-order', data).then(function(result) {
@@ -1621,11 +1739,13 @@
       // 普通用户单人提交
       var dishId = document.getElementById('singleDishItem').value;
       if (!dishId) { showToast('请选择餐品', 'info'); return; }
+      var qty = parseInt(document.getElementById('singleQty').value) || 1;
+      if (qty < 1) qty = 1;
       var data = {
         date: date,
         mealType: mealType,
         itemType: 'menu',
-        menuId: dishId
+        items: [{ menuId: dishId, quantity: qty }]
       };
       
 
@@ -1637,7 +1757,7 @@
         submitBtn.disabled = false;
         submitBtn.textContent = '提交订单';
         if (result.success) {
-          loadAllData();
+          refreshDataNow();
           document.getElementById('singleDishItem').value = '';
           document.getElementById('singleDishPrice').textContent = '';
         } else {
@@ -1712,7 +1832,7 @@
         if (result.success) {
           document.getElementById('newUsername').value = '';
           showToast(result.message || '用户添加成功', 'success');
-          loadAllData();
+          refreshDataNow();
         } else {
           showToast(result.message || '添加失败', 'error');
         }
@@ -1773,7 +1893,7 @@
       withConfirmFeedback(target, function() {
         return apiRequest('POST', 'reset-password', { userId: userId })
           .then(function(result) {
-            if (result.success) { loadAllData(); return true; }
+            if (result.success) { refreshDataNow(); return true; }
             else { showToast(result.message || '重置失败', 'error'); return false; }
           });
       }, '密码已重置为 123456');
@@ -1805,7 +1925,7 @@
       if (actionBtn) actionBtn.classList.remove('hidden');
       withConfirmFeedback(target, function() {
         return apiRequest('POST', 'delete-user', { userId: userId })
-          .then(function(result) { if (result.success) { loadAllData(); return true; } else { showToast(result.message || '删除失败', 'error'); return false; } });
+          .then(function(result) { if (result.success) { refreshDataNow(); return true; } else { showToast(result.message || '删除失败', 'error'); return false; } });
       }, '用户已删除');
       return;
     }
@@ -2259,8 +2379,7 @@
     lunchSelfPick = this.checked;
     updateSetting('settings_lunch_selfpick', lunchSelfPick).then(function(result) {
       if (result.success) {
-        lastRefreshTime = 0;
-        loadAllData();
+        refreshDataNow();
         showToast('午餐自取减免已更新', 'success');
       } else {
         lunchSelfPick = !lunchSelfPick;
@@ -2278,8 +2397,7 @@
     dinnerSelfPick = this.checked;
     updateSetting('settings_dinner_selfpick', dinnerSelfPick).then(function(result) {
       if (result.success) {
-        lastRefreshTime = 0;
-        loadAllData();
+        refreshDataNow();
         showToast('晚餐自取减免已更新', 'success');
       } else {
         dinnerSelfPick = !dinnerSelfPick;
@@ -2295,6 +2413,22 @@
 
   // ========== 菜品选择价格回显 ==========
   document.getElementById('singleDishItem').addEventListener('change', function() {
+    updateDishPriceHint('singleDishItem', 'singleDishPrice');
+  });
+  document.getElementById('singleQtyMinus').addEventListener('click', function() {
+    var qty = parseInt(document.getElementById('singleQty').value) || 1;
+    document.getElementById('singleQty').value = Math.max(1, qty - 1);
+    updateDishPriceHint('singleDishItem', 'singleDishPrice');
+  });
+  document.getElementById('singleQtyPlus').addEventListener('click', function() {
+    var qty = parseInt(document.getElementById('singleQty').value) || 1;
+    document.getElementById('singleQty').value = qty + 1;
+    updateDishPriceHint('singleDishItem', 'singleDishPrice');
+  });
+  document.getElementById('singleQty').addEventListener('change', function() {
+    var qty = parseInt(this.value) || 1;
+    if (qty < 1) qty = 1;
+    this.value = qty;
     updateDishPriceHint('singleDishItem', 'singleDishPrice');
   });
   document.getElementById('editDishItem').addEventListener('change', function() {

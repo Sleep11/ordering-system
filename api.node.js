@@ -54,7 +54,7 @@ async function readOrderKeysInBatches(keys) {
   return orders;
 }
 
-var ORDER_SCHEMA_VERSION = 'order_schema_v2';
+var ORDER_SCHEMA_VERSION = 'order_schema_v3';
 
 function getOrderDiscountValue(order, lunchSelfPick, dinnerSelfPick) {
   if (typeof order.discount === 'number') return order.discount;
@@ -72,7 +72,50 @@ function normalizeOrderMoney(order, lunchSelfPick, dinnerSelfPick) {
   order.actual = order.paid ? price : 0;
   if (typeof order.refund !== 'number') order.refund = order.paid ? order.discount : 0;
   if (typeof order.refunded !== 'boolean') order.refunded = false;
+  if (!Array.isArray(order.items)) {
+    order.items = [{
+      menuId: order.menuId || '',
+      name: order.itemName || '',
+      price: parseFloat(order.price) || 0,
+      quantity: 1
+    }];
+  }
+  var quantity = 0;
+  for (var i = 0; i < order.items.length; i++) quantity += parseInt(order.items[i].quantity) || 1;
+  order.quantity = quantity;
   return order;
+}
+
+function normalizeMenuPayload(raw) {
+  if (Array.isArray(raw)) {
+    if (raw.length === 1 && typeof raw[0] === 'string') {
+      try {
+        var parsed = JSON.parse(raw[0]);
+        return normalizeMenuPayload(parsed);
+      } catch (e) {}
+    }
+    return raw;
+  }
+  if (typeof raw === 'string') {
+    try {
+      var parsed = JSON.parse(raw);
+      return normalizeMenuPayload(parsed);
+    } catch (e) {
+      return null;
+    }
+  }
+  if (raw && typeof raw === 'object') {
+    if (Array.isArray(raw.menu)) return normalizeMenuPayload(raw.menu);
+    if (typeof raw.menu === 'string') return normalizeMenuPayload(raw.menu);
+    var arr = [];
+    var i = 0;
+    while (raw[i] !== undefined) {
+      arr.push(raw[i]);
+      i++;
+    }
+    if (arr.length > 0) return arr;
+  }
+  return null;
 }
 
 async function migrateOrderSchema() {
@@ -788,6 +831,60 @@ async function handleCreateOrder() {
         return sendJSON({ success: false, message: '自定义餐品名称不能为空' }, 400);
       }
     }
+
+    var items = [];
+    var rawItems = body.items;
+    if (typeof rawItems === 'string') {
+      try { rawItems = JSON.parse(rawItems); } catch (e) {}
+    }
+    if (rawItems !== undefined && rawItems !== null) {
+      if (!Array.isArray(rawItems) || rawItems.length === 0) {
+        return sendJSON({ success: false, message: '餐食数据格式错误' }, 400);
+      }
+      var totalPrice = 0;
+      var itemNames = [];
+      for (var ii = 0; ii < rawItems.length; ii++) {
+        var rawItem = rawItems[ii] || {};
+        var qty = parseInt(rawItem.quantity) || 1;
+        if (qty < 1) qty = 1;
+        var unitPrice = 0;
+        var name = '';
+        if (rawItem.menuId) {
+          var menuItem = await getMenuItem(rawItem.menuId);
+          if (!menuItem) {
+            return sendJSON({ success: false, message: '餐品不存在' }, 404);
+          }
+          name = menuItem.name;
+          unitPrice = menuItem.price;
+        } else {
+          name = rawItem.name;
+          unitPrice = parseFloat(rawItem.price);
+          if (!name || isNaN(unitPrice) || unitPrice < 0) {
+            return sendJSON({ success: false, message: '自定义餐品信息不完整' }, 400);
+          }
+          unitPrice = Math.round(unitPrice * 100) / 100;
+        }
+        items.push({
+          menuId: rawItem.menuId || '',
+          name: name,
+          price: unitPrice,
+          quantity: qty
+        });
+        totalPrice += unitPrice * qty;
+        itemNames.push(name + (qty > 1 ? '×' + qty : ''));
+      }
+      price = Math.round(totalPrice * 100) / 100;
+      itemName = itemNames.join('、');
+    } else {
+      items.push({
+        menuId: body.menuId || '',
+        name: itemName,
+        price: price,
+        quantity: 1
+      });
+    }
+    var totalQuantity = 0;
+    for (var qi = 0; qi < items.length; qi++) totalQuantity += items[qi].quantity || 1;
     
     // 获取用户信息
     var users = await readUsersWithRetry(3);
@@ -863,6 +960,8 @@ async function handleCreateOrder() {
       itemType: itemType,
       itemName: itemName,
       price: price,
+      items: items,
+      quantity: totalQuantity,
       receivable: receivable,
       discount: discount,
       actual: actual,
@@ -1236,10 +1335,10 @@ async function handleUpdateMenu() {
     }
 
     var body = req.body || {};
-    var menu = body.menu;
-    if (typeof menu === 'string') {
-      try { menu = JSON.parse(menu); } catch(e) {}
+    if (typeof body === 'string') {
+      try { body = JSON.parse(body); } catch(e) {}
     }
+    var menu = normalizeMenuPayload(body && body.menu);
     if (!Array.isArray(menu)) {
       return sendJSON({ success: false, message: '菜单数据格式错误' }, 400);
     }

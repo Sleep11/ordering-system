@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>多人在线点餐系统</title>
-  <link rel="stylesheet" href="styles.css?v=2.4.0">
+  <link rel="stylesheet" href="styles.css?v=2.5.0">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   </head>
 
@@ -64,7 +64,7 @@
         <div class="topbar-right">
           <span id="userName" class="topbar-user"></span>
           <span id="userRole" class="role-badge"></span>
-          <span id="versionBadge" class="version-badge">v2.4.0</span>
+          <span id="versionBadge" class="version-badge">v2.5.0</span>
           <button id="changePasswordBtn" class="btn btn-ghost btn-small">修改密码</button>
           <button id="refreshBtn" class="btn btn-refresh" title="刷新数据">刷新</button>
           <button id="logoutBtn" class="btn btn-ghost btn-small">退出</button>
@@ -212,7 +212,7 @@
 
               <!-- 管理员：批量订餐表格 -->
               <div class="form-group" id="userSelectGroup" style="display:none;">
-                <label>订餐人员 <span class="selected-count" id="selectedUserCount">已选 0 人</span></label>
+                <label>订餐列表 <span class="selected-count" id="selectedUserCount">已选 0 人</span></label>
                 <div class="batch-order-table" id="batchOrderTable">
                   <div class="batch-order-header">
                     <span class="col-checkbox"><input type="checkbox" id="selectAllUsers" title="全选/取消全选"></span>
@@ -227,9 +227,16 @@
               <!-- 普通用户：单人点餐 -->
               <div class="form-group" id="singleDishGroup">
                 <label for="singleDishItem">餐品</label>
-                <select id="singleDishItem" required>
-                  <option value="">-- 请选择餐品 --</option>
-                </select>
+                <div class="single-item-row">
+                  <select id="singleDishItem" required>
+                    <option value="">-- 请选择餐品 --</option>
+                  </select>
+                  <span class="item-qty-wrap">
+                    <button type="button" id="singleQtyMinus" title="减少一份">−</button>
+                    <input type="number" id="singleQty" value="1" min="1">
+                    <button type="button" id="singleQtyPlus" title="增加一份">+</button>
+                  </span>
+                </div>
                 <div class="menu-price-inline" id="singleDishPrice">选择餐品后显示价格</div>
               </div>
               <div id="batchSubmitStatus" class="batch-submit-status hidden"></div>
@@ -480,6 +487,6 @@
   <!-- ========== Toast 通知 ========== -->
   <div id="toastContainer" class="toast-container"></div>
 
-  <script src="app.js?v=2.4.0"></script>
+  <script src="app.js?v=2.5.0"></script>
 </body>
 </html>
