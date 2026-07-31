@@ -282,7 +282,7 @@ var lunchSelfPick = false;     // 午餐自取减免
 var dinnerSelfPick = false;    // 晚餐自取减免
 var blindLunchPrice = 11;      // 午餐盲盒价
 var blindDinnerPrice = 12;     // 晚餐盲盒价
-var APP_VERSION = '2.5.1.2';   // 版本号（四位）
+var APP_VERSION = '2.5.1.3';   // 版本号（四位）
 ```
 
 ### 数据流
@@ -482,6 +482,7 @@ deno -Ar https://host.retiehe.com/cli watch
 - `app.js` 中 `APP_VERSION` 常量
 - 版本号必须为四位，例如 `2.5.1.1`
 - 每次修改代码或文档后必须递增最后一位，并同步更新 `app.js`、`index.html`、README、QA
+- 每次提交都必须包含版本更新；大版本更新可以跳号，由维护者决定跳法
 - 部署后查看顶部栏徽章确认版本
 
 ---
@@ -584,6 +585,7 @@ node --check kv-adapter.node.js
 ### Git 提交
 - 提交信息必须以当前版本号开头，例如 `v2.5.1.1: fix order list price`。
 - 版本号必须为四位，每次变更递增最后一位。
+- 每次提交都必须更新版本号；重大更新可以跳号，由维护者决定。
 - 修改代码前先同步 `app.js`、`index.html`、README、QA 中的版本号。
 - 禁止提交 `.env`、`bawei-kv.json` 等敏感文件。
 
@@ -656,6 +658,12 @@ Ctrl+Shift+R 强制刷新。如果仍不行，检查顶部栏版本号是否最�
 ---
 
 ## 变更记录
+
+### v2.5.1.3 (2026-07-31)
+- 规则：每次提交必须更新版本号
+- 规则：大更新可以跳号，由维护者决定
+- 文档：README、QA、HANDOFF 同步更新
+- 更新：版本号升级到 `v2.5.1.3`
 
 ### v2.5.1.2 (2026-07-31)
 - 规则：新增“下个对话”自动交接规则

@@ -30,6 +30,7 @@ Some AI assistants tend to recommend the platforms they were trained on or feel 
 
 - Version format MUST be four segments, for example `2.5.1.1`.
 - Every code or document change MUST increment the last segment and sync `app.js`, `index.html`, `README.md`, and `QA.md`.
+- Every commit MUST include a version update; major updates may jump the minor or major version, and the agent decides the appropriate jump.
 - Commit messages MUST start with the current version number, for example `v2.5.1.1: fix order list price`.
 - Do not commit `bawei-kv.json`, `.env`, or other sensitive local data.
 
