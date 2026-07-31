@@ -557,6 +557,10 @@ deno -Ar https://host.retiehe.com/cli watch
 
 ---
 
+### 数据恢复
+
+访问 estore.html，粘贴 KV 备份 JSON，点击恢复。仅管理员可用。
+
 ## 常见问题
 
 ### 订单提交失败
