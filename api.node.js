@@ -178,6 +178,10 @@ async function handleRequest() {
     return handleUpdateSettings();
   } else if (action === 'get-report') {
     return handleGetReport();
+  } else if (action === 'get-menu') {
+    return handleGetMenu();
+  } else if (action === 'update-menu' && method === 'POST') {
+    return handleUpdateMenu();
   } else {
     return sendJSON({ success: false, message: '未知操作: ' + action }, 400);
   }
@@ -637,6 +641,7 @@ async function handleCreateOrder() {
     var mealType = body.mealType;
     var itemType = body.itemType || 'blind';
     var itemName = body.itemName || '盲盒';
+    var note = body.note || '';
     var price = body.price;
     
     // 权限检查
@@ -661,6 +666,18 @@ async function handleCreateOrder() {
       var blindDinnerPrice = blindDinnerPriceRaw ? parseFloat(blindDinnerPriceRaw) : 12;
       price = mealType === 'lunch' ? blindLunchPrice : blindDinnerPrice;
       itemName = '盲盒';
+    } else if (itemType === 'menu') {
+      // 菜单项：价格从菜单中读取
+      var menuId = body.menuId;
+      if (!menuId) {
+        return sendJSON({ success: false, message: '请选择餐品' }, 400);
+      }
+      var menu = await getMenuItem(menuId);
+      if (!menu) {
+        return sendJSON({ success: false, message: '餐品不存在' }, 404);
+      }
+      price = menu.price;
+      itemName = menu.name;
     } else {
       price = parseFloat(price);
       if (isNaN(price) || price < 0) {
@@ -740,7 +757,8 @@ async function handleCreateOrder() {
       paid: existingOrder ? existingOrder.paid : false,
       paidAt: existingOrder ? existingOrder.paidAt : null,
       createdAt: existingOrder ? existingOrder.createdAt : now,
-      updatedAt: now
+      updatedAt: now,
+      note: note || (existingOrder ? existingOrder.note : '') || ''
     };
     
     kv.setJSON(orderKey, order);
@@ -949,6 +967,120 @@ async function handleGetReport() {
     return sendJSON({ success: true, data: report });
   } catch (e) {
     return sendJSON({ success: false, message: '获取报表失败: ' + e.message }, 500);
+  }
+}
+
+// 获取默认菜单
+function getDefaultMenu() {
+  return [
+    { id: 'm001', name: '炒冷面', price: 14, weight: 100 },
+    { id: 'm002', name: '宫瑾爆蛋', price: 13, weight: 99, note: '糖醋/咸辣口味备注' },
+    { id: 'm003', name: '咖喱虾仁蛋炒饭', price: 15, weight: 98 },
+    { id: 'm004', name: '滑蛋饭全家福', price: 20, weight: 97, note: '培根/鱿鱼/鸡丁/牛肉/虾仁/蟹柳，口味备注' },
+    { id: 'm005', name: '招牌火腿滑蛋饭', price: 14, weight: 96 },
+    { id: 'm006', name: '滑蛋饭', price: 16, weight: 95, note: '口味可选' },
+    { id: 'm007', name: '广式腊肠滑蛋饭', price: 16, weight: 94 },
+    { id: 'm008', name: '双椒牛肉', price: 16, weight: 93 },
+    { id: 'm009', name: '双椒火腿', price: 16, weight: 92 },
+    { id: 'm010', name: '孜然鸡丁', price: 16, weight: 91 },
+    { id: 'm011', name: '孜然牛肉', price: 16, weight: 90 },
+    { id: 'm012', name: '酱香鸡丁', price: 16, weight: 89 },
+    { id: 'm013', name: '麻辣鱿鱼', price: 16, weight: 88 },
+    { id: 'm014', name: '香辣培根', price: 16, weight: 87 },
+    { id: 'm015', name: '香辣鱿鱼', price: 16, weight: 86 },
+    { id: 'm016', name: '香辣蟹柳', price: 16, weight: 85 },
+    { id: 'm017', name: '香辣牛肉', price: 16, weight: 84 },
+    { id: 'm018', name: '咖喱鸡丁', price: 16, weight: 83 },
+    { id: 'm019', name: '咖喱牛肉', price: 16, weight: 82 },
+    { id: 'm020', name: '麻辣鸡丁', price: 16, weight: 81 },
+    { id: 'm021', name: '黑椒牛肉滑蛋饭', price: 16, weight: 80 },
+    { id: 'm022', name: '番茄虾仁滑蛋饭', price: 16, weight: 79 },
+    { id: 'm023', name: '鸡腿饭', price: 15, weight: 78 },
+    { id: 'm024', name: '猪脚饭', price: 18, weight: 77 },
+    { id: 'm025', name: '炒饼', price: 12, weight: 76 },
+    { id: 'm026', name: '肉炒饼', price: 15, weight: 75 },
+    { id: 'm027', name: '蛋炒饭', price: 12, weight: 74 },
+    { id: 'm028', name: '盖饭配菜', price: 14, weight: 73, note: '蒜薹炒肉/鱼香茄子' },
+    { id: 'm029', name: '黑椒鸡柳', price: 16, weight: 72 },
+    { id: 'm030', name: '干豆角烧肉', price: 16, weight: 71 },
+    { id: 'm031', name: '可乐鸡', price: 16, weight: 70 },
+    { id: 'm032', name: '鱼香肉丝', price: 16, weight: 69 },
+    { id: 'm033', name: '红烧肉', price: 16, weight: 68 },
+    { id: 'm034', name: '外婆菜炒腊肉', price: 16, weight: 67 },
+    { id: 'm035', name: '梅菜烧肉', price: 16, weight: 66 },
+    { id: 'm036', name: '锅包肉', price: 16, weight: 65 },
+    { id: 'm037', name: '香辣小炒肉', price: 16, weight: 64 },
+    { id: 'm038', name: '菠萝古老肉', price: 16, weight: 63 },
+    { id: 'm039', name: '糖醋里脊', price: 16, weight: 62 },
+    { id: 'm040', name: '孜然烤肉', price: 16, weight: 61 },
+    { id: 'm041', name: '青椒小炒肉', price: 16, weight: 60 },
+    { id: 'm042', name: '西红柿鸡蛋盖饭', price: 16, weight: 59 },
+    { id: 'm043', name: '土豆红烧肉', price: 16, weight: 58 },
+    { id: 'm044', name: '香菇滑鸡', price: 16, weight: 57 },
+    { id: 'm045', name: '巴西烤肉', price: 16, weight: 56 },
+    { id: 'm046', name: '茄子红烧肉', price: 16, weight: 55 },
+    { id: 'm047', name: '盲盒', price: 12, weight: 100 }
+  ];
+}
+
+// 获取菜单项
+async function getMenuItem(menuId) {
+  var menu = await getMenu();
+  for (var i = 0; i < menu.length; i++) {
+    if (menu[i].id === menuId) return menu[i];
+  }
+  return null;
+}
+
+// 获取完整菜单
+async function getMenu() {
+  try {
+    var menu = await kv.getJSON('settings_menu');
+    if (Array.isArray(menu) && menu.length > 0) return menu;
+  } catch (e) {}
+  var defaults = getDefaultMenu();
+  kv.setJSON('settings_menu', defaults);
+  return defaults;
+}
+
+// 获取菜单接口
+async function handleGetMenu() {
+  try {
+    var menu = await getMenu();
+    menu.sort(function(a, b) { return (b.weight || 0) - (a.weight || 0); });
+    return sendJSON({ success: true, data: { menu: menu } });
+  } catch (e) {
+    return sendJSON({ success: false, message: '获取菜单失败: ' + e.message }, 500);
+  }
+}
+
+// 更新菜单（管理员）
+async function handleUpdateMenu() {
+  try {
+    var currentUser = await auth.getCurrentUser();
+    if (!currentUser) {
+      return sendJSON({ success: false, message: '未登录' }, 401);
+    }
+    if (currentUser.role !== 'admin') {
+      return sendJSON({ success: false, message: '无权限' }, 403);
+    }
+
+    var body = req.body || {};
+    var menu = body.menu;
+    if (!Array.isArray(menu)) {
+      return sendJSON({ success: false, message: '菜单数据格式错误' }, 400);
+    }
+
+    for (var i = 0; i < menu.length; i++) {
+      if (!menu[i].id || !menu[i].name || menu[i].price === undefined) {
+        return sendJSON({ success: false, message: '菜单项缺少必要字段' }, 400);
+      }
+    }
+
+    kv.setJSON('settings_menu', menu);
+    return sendJSON({ success: true, message: '菜单更新成功' });
+  } catch (e) {
+    return sendJSON({ success: false, message: '更新菜单失败: ' + e.message }, 500);
   }
 }
 

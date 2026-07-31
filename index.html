@@ -213,32 +213,24 @@
                   <div class="batch-order-header">
                     <span class="col-checkbox"><input type="checkbox" id="selectAllUsers" title="全选/取消全选"></span>
                     <span class="col-name">姓名</span>
-                    <span class="col-type">餐品类型</span>
-                    <span class="col-dish">餐品名称</span>
-                    <span class="col-price">价格(元)</span>
+                    <span class="col-menu">餐品</span>
+                    <span class="col-note">备注</span>
                   </div>
                   <div id="batchOrderRows"></div>
                 </div>
               </div>
 
               <!-- 普通用户：单人点餐 -->
-              <div class="form-group" id="singleItemTypeGroup">
-                <label for="itemType">餐品类型</label>
-                <select id="itemType" name="itemType" required>
-                  <option value="blind">盲盒</option>
-                  <option value="custom">自定义</option>
+              <div class="form-group" id="singleMenuGroup">
+                <label for="singleMenuItem">餐品</label>
+                <select id="singleMenuItem" required>
+                  <option value="">-- 请选择餐品 --</option>
                 </select>
+                <p class="menu-price-hint" id="singleMenuPrice"></p>
               </div>
-              <div class="form-group" id="customItemGroup" style="display:none;">
-                <label for="itemName">餐品名称</label>
-                <input type="text" id="itemName" name="itemName" placeholder="请输入餐品名称">
-              </div>
-              <div class="form-group" id="customPriceGroup" style="display:none;">
-                <label for="itemPrice">价格（元）</label>
-                <input type="number" id="itemPrice" name="price" step="0.01" min="0" placeholder="请输入价格">
-              </div>
-              <div class="form-group" id="blindPriceInfo">
-                <p class="price-info">午餐盲盒：11元 | 晚餐盲盒：12元</p>
+              <div class="form-group" id="singleNoteGroup">
+                <label for="singleNote">备注（口味等）</label>
+                <input type="text" id="singleNote" placeholder="可选备注">
               </div>
               <div id="batchSubmitStatus" class="batch-submit-status hidden"></div>
               <button type="submit" class="btn btn-primary">提交订单</button>
@@ -327,6 +319,30 @@
             <div id="reportContainer">
               <div class="empty-state">点击上方选项卡加载数据</div>
             </div>
+          </div>
+        </section>
+
+        <!-- 管理员：菜单管理 -->
+        <section id="section-menu" class="panel collapsible hidden">
+          <div class="panel__header collapsible-toggle" data-section="menu">
+            <h2 class="panel__title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+              菜单管理
+            </h2>
+            <svg class="collapse-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </div>
+          <div class="panel__body collapsible-body">
+            <div class="menu-toolbar">
+              <button class="btn btn-ghost btn-small" id="addMenuItemBtn">+ 添加餐品</button>
+              <button class="btn btn-ghost btn-small" id="saveMenuBtn">💾 保存菜单</button>
+              <span class="menu-hint">拖拽权重滑块调整顺序，权重高排前面</span>
+            </div>
+            <div id="menuList" class="menu-list"></div>
           </div>
         </section>
 
@@ -429,22 +445,15 @@
           </select>
         </div>
         <div class="form-group">
-          <label for="editItemType">餐品类型</label>
-          <select id="editItemType" name="editItemType" required>
-            <option value="blind">盲盒</option>
-            <option value="custom">自定义</option>
+          <label for="editMenuItem">餐品</label>
+          <select id="editMenuItem" required>
+            <option value="">-- 请选择餐品 --</option>
           </select>
+          <p class="menu-price-hint" id="editMenuPrice"></p>
         </div>
-        <div class="form-group" id="editCustomItemGroup" style="display:none;">
-          <label for="editItemName">餐品名称</label>
-          <input type="text" id="editItemName" name="editItemName" placeholder="请输入餐品名称">
-        </div>
-        <div class="form-group" id="editCustomPriceGroup" style="display:none;">
-          <label for="editItemPrice">价格（元）</label>
-          <input type="number" id="editItemPrice" name="editItemPrice" step="0.01" min="0" placeholder="请输入价格">
-        </div>
-        <div class="form-group" id="editBlindPriceInfo">
-          <p class="price-info">午餐盲盒：11元 | 晚餐盲盒：12元</p>
+        <div class="form-group">
+          <label for="editNote">备注（口味等）</label>
+          <input type="text" id="editNote" placeholder="可选备注">
         </div>
         <div id="editOrderError" class="error-message"></div>
         <div class="modal__actions">

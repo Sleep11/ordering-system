@@ -9,6 +9,8 @@
   var allOrders = [];
   var expandedDates = {};
   var settings = { orderLocked: false, lunchLocked: false, dinnerLocked: false };
+  var menuItems = [];
+  var menuLoaded = false;
   var blindLunchPrice = 11;
   var blindDinnerPrice = 12;
   var refreshTimer = null;
@@ -256,6 +258,55 @@
   // ========== 设置管理 ==========
   var settingsLoaded = false;
 
+  // ========== 菜单管理 ==========
+  function loadMenu() {
+    return apiRequest('POST', 'get-menu', {}).then(function(result) {
+      if (result.success && result.data && result.data.menu) {
+        menuItems = result.data.menu;
+        menuLoaded = true;
+        populateMenuDropdowns();
+        if (currentUser && currentUser.role === 'admin' && allUsers.length > 0) {
+          populateBatchOrderTable();
+        }
+        if (currentUser && currentUser.role === 'admin') {
+          renderMenuManager();
+        }
+      }
+    }).catch(function() {});
+  }
+
+  function populateMenuDropdowns() {
+    var singleSelect = document.getElementById('singleMenuItem');
+    var editSelect = document.getElementById('editMenuItem');
+    var html = '<option value="">-- 请选择餐品 --</option>';
+    for (var i = 0; i < menuItems.length; i++) {
+      var m = menuItems[i];
+      html += '<option value="' + escapeHtml(m.id) + '" data-price="' + m.price + '">' + escapeHtml(m.name) + ' ¥' + m.price + '</option>';
+    }
+    if (singleSelect) singleSelect.innerHTML = html;
+    if (editSelect) editSelect.innerHTML = html;
+  }
+
+  function getMenuById(id) {
+    for (var i = 0; i < menuItems.length; i++) {
+      if (menuItems[i].id === id) return menuItems[i];
+    }
+    return null;
+  }
+
+  function updateMenuPriceHint(selectId, hintId) {
+    var sel = document.getElementById(selectId);
+    var hint = document.getElementById(hintId);
+    if (!sel || !hint) return;
+    var opt = sel.options[sel.selectedIndex];
+    if (opt && opt.value) {
+      var price = opt.getAttribute('data-price');
+      hint.textContent = '价格：¥' + price;
+    } else {
+      hint.textContent = '';
+    }
+  }
+
   // 获取盲盒价格
   function getBlindPrice(mealType) {
     return mealType === 'lunch' ? blindLunchPrice : blindDinnerPrice;
@@ -302,10 +353,8 @@
     var blindDinnerInput = document.getElementById('blindDinnerPrice');
     if (blindDinnerInput) blindDinnerInput.value = blindDinnerPrice;
     // 更新价格提示文本
-    var blindPriceInfo = document.querySelector('#blindPriceInfo .price-info');
-    if (blindPriceInfo) blindPriceInfo.textContent = getBlindPriceText();
-    var editBlindInfo = document.querySelector('#editBlindPriceInfo .price-info');
-    if (editBlindInfo) editBlindInfo.textContent = getBlindPriceText();
+    var blindPriceInfo = document.getElementById('blindPriceInfo');
+    // blindPriceInfo element removed, skip
   }
 
   function updateSetting(key, value) {
@@ -449,18 +498,18 @@
     // 管理员显示侧边栏和用户管理区
     if (currentUser.role === 'admin') {
       document.getElementById('sidebar').classList.remove('hidden');
+      document.getElementById('section-menu').classList.remove('hidden');
       document.getElementById('section-admin').classList.remove('hidden');
       document.getElementById('userSelectGroup').style.display = '';
-      document.getElementById('singleItemTypeGroup').style.display = 'none';
-      document.getElementById('customItemGroup').style.display = 'none';
-      document.getElementById('customPriceGroup').style.display = 'none';
-      document.getElementById('blindPriceInfo').style.display = '';
+      document.getElementById('singleMenuGroup').style.display = 'none';
+      document.getElementById('singleNoteGroup').style.display = 'none';
     } else {
       document.getElementById('sidebar').classList.add('hidden');
+      document.getElementById('section-menu').classList.add('hidden');
       document.getElementById('section-admin').classList.add('hidden');
       document.getElementById('userSelectGroup').style.display = 'none';
-      document.getElementById('singleItemTypeGroup').style.display = '';
-      document.getElementById('itemType').dispatchEvent(new Event('change'));
+      document.getElementById('singleMenuGroup').style.display = '';
+      document.getElementById('singleNoteGroup').style.display = '';
     }
 
     // 设置日期默认值
@@ -552,6 +601,9 @@
     // 首次加载设置
     if (!settingsLoaded) {
       loadSettings();
+    }
+    if (!menuLoaded) {
+      loadMenu();
     }
 
     // 加载订单（不阻塞其他数据加载）
@@ -661,14 +713,12 @@
       var checkbox = row.querySelector('.user-checkbox');
       if (!checkbox) continue;
       var userId = checkbox.value;
-      var itemTypeSelect = row.querySelector('.item-type-select');
-      var dishInput = row.querySelector('.dish-name-input');
-      var priceInput = row.querySelector('.price-input');
+      var menuSelect = row.querySelector('.menu-select');
+      var noteInput = row.querySelector('.note-input');
       drafts[userId] = {
         checked: checkbox.checked,
-        itemType: itemTypeSelect ? itemTypeSelect.value : 'blind',
-        itemName: dishInput ? dishInput.value : '',
-        price: priceInput ? priceInput.value : ''
+        menuId: menuSelect ? menuSelect.value : '',
+        note: noteInput ? noteInput.value : ''
       };
     }
     return drafts;
@@ -676,39 +726,41 @@
 
   function populateBatchOrderTable() {
     var container = document.getElementById('batchOrderRows');
-    var mealType = document.getElementById('mealType').value;
-    var blindPrice = getBlindPrice(mealType);
     var drafts = collectBatchOrderDrafts();
     var fragment = document.createDocumentFragment();
+
+    // 构建菜单选项
+    var menuOpts = '<option value="">-- 选择 --</option>';
+    for (var k = 0; k < menuItems.length; k++) {
+      var mi = menuItems[k];
+      menuOpts += '<option value="' + escapeHtml(mi.id) + '" data-price="' + mi.price + '">' + escapeHtml(mi.name) + ' ¥' + mi.price + '</option>';
+    }
 
     container.innerHTML = '';
     for (var i = 0; i < allUsers.length; i++) {
       var user = allUsers[i];
       var draft = drafts[user.id];
-      var itemType = draft ? draft.itemType : 'blind';
+      var menuId = draft ? draft.menuId : '';
       var checked = draft ? draft.checked : false;
-      var isBlind = itemType === 'blind';
-      var itemName = draft ? draft.itemName : '';
-      var price = draft && draft.price ? draft.price : blindPrice.toFixed(2);
+      var note = draft ? (draft.note || '') : '';
       var row = document.createElement('div');
       row.className = 'batch-order-row' + (checked ? ' is-selected' : '');
       row.dataset.userId = user.id;
+      // 注入 selected 属性
+      var optsHtml = menuOpts;
+      if (menuId) {
+        optsHtml = optsHtml.replace('value="' + escapeHtml(menuId) + '"', 'value="' + escapeHtml(menuId) + '" selected');
+      }
       row.innerHTML =
         '<span class="col-checkbox">' +
           '<input type="checkbox" class="user-checkbox" value="' + escapeHtml(user.id) + '"' + (checked ? ' checked' : '') + '>' +
         '</span>' +
         '<span class="col-name">' + escapeHtml(user.name) + '</span>' +
-        '<span class="col-type">' +
-          '<select class="item-type-select">' +
-            '<option value="blind"' + (itemType === 'blind' ? ' selected' : '') + '>盲盒</option>' +
-            '<option value="custom"' + (itemType === 'custom' ? ' selected' : '') + '>自定义</option>' +
-          '</select>' +
+        '<span class="col-menu">' +
+          '<select class="menu-select">' + optsHtml + '</select>' +
         '</span>' +
-        '<span class="col-dish">' +
-          '<input type="text" class="dish-name-input" placeholder="输入餐品名称" value="' + escapeHtml(itemName) + '"' + (isBlind ? ' disabled' : ' required') + '>' +
-        '</span>' +
-        '<span class="col-price">' +
-          '<input type="number" class="price-input" value="' + escapeHtml(price) + '" step="0.01" min="0"' + (isBlind ? ' disabled' : '') + '>' +
+        '<span class="col-note">' +
+          '<input type="text" class="note-input" placeholder="备注" value="' + escapeHtml(note) + '">' +
         '</span>';
       fragment.appendChild(row);
     }
@@ -756,38 +808,6 @@
   // 行内 select/input 变化联动
   document.getElementById('batchOrderRows').addEventListener('change', function(e) {
     var target = e.target;
-    if (target.classList.contains('item-type-select')) {
-      var row = target.closest('.batch-order-row');
-      var isBlind = target.value === 'blind';
-      var dishInput = row.querySelector('.dish-name-input');
-      var priceInput = row.querySelector('.price-input');
-      var mealType = document.getElementById('mealType').value;
-      var blindPrice = getBlindPrice(mealType);
-      dishInput.disabled = isBlind;
-      dishInput.required = !isBlind;
-      priceInput.disabled = isBlind;
-      if (isBlind) {
-        dishInput.value = '';
-        priceInput.value = blindPrice.toFixed(2);
-      }
-    }
-  });
-
-  // 餐别切换时更新盲盒价格
-  document.getElementById('mealType').addEventListener('change', function() {
-    var mealType = this.value;
-    var blindPrice = getBlindPrice(mealType);
-    var rows = document.querySelectorAll('.batch-order-row');
-    for (var i = 0; i < rows.length; i++) {
-      var row = rows[i];
-      var typeSelect = row.querySelector('.item-type-select');
-      var priceInput = row.querySelector('.price-input');
-      if (typeSelect && typeSelect.value === 'blind' && priceInput) {
-        priceInput.value = blindPrice.toFixed(2);
-      }
-    }
-    document.getElementById('blindPriceInfo').querySelector('.price-info').textContent =
-      getBlindPriceText();
   });
 
   // 点击人员行切换复选框
@@ -841,28 +861,18 @@
     document.getElementById('editOrderDate').textContent = formatDate(order.date) + ' ' + getDayOfWeek(order.date);
     document.getElementById('editMealType').value = order.mealType;
 
-    var editItemType = document.getElementById('editItemType');
-    var editItemName = document.getElementById('editItemName');
-    var editItemPrice = document.getElementById('editItemPrice');
-
-    editItemType.value = order.itemType || 'blind';
-
-    var isCustom = editItemType.value === 'custom';
-    document.getElementById('editCustomItemGroup').style.display = isCustom ? '' : 'none';
-    document.getElementById('editCustomPriceGroup').style.display = isCustom ? '' : 'none';
-    document.getElementById('editBlindPriceInfo').style.display = isCustom ? 'none' : '';
-
-    if (isCustom) {
-      editItemName.value = order.itemName || '';
-      editItemPrice.value = order.price || '';
-    } else {
-      editItemName.value = '';
-      editItemPrice.value = '';
+    // 尝试匹配菜单项
+    var editMenu = document.getElementById('editMenuItem');
+    if (editMenu && menuItems.length > 0) {
+      var matched = null;
+      for (var mi = 0; mi < menuItems.length; mi++) {
+        if (menuItems[mi].name === order.itemName) { matched = menuItems[mi]; break; }
+      }
+      editMenu.value = matched ? matched.id : '';
+      updateMenuPriceHint('editMenuItem', 'editMenuPrice');
     }
-
-    var blindPrice = getBlindPrice(order.mealType);
-    document.getElementById('editBlindPriceInfo').querySelector('.price-info').textContent =
-      getBlindPriceText();
+    var editNote = document.getElementById('editNote');
+    if (editNote) editNote.value = order.note || '';
 
     document.getElementById('editOrderError').textContent = '';
     document.getElementById('editOrderModal').classList.remove('hidden');
@@ -873,41 +883,25 @@
     document.getElementById('editOrderModal').classList.add('hidden');
   }
 
-  document.getElementById('editItemType').addEventListener('change', function() {
-    var isCustom = this.value === 'custom';
-    document.getElementById('editCustomItemGroup').style.display = isCustom ? '' : 'none';
-    document.getElementById('editCustomPriceGroup').style.display = isCustom ? '' : 'none';
-    document.getElementById('editBlindPriceInfo').style.display = isCustom ? 'none' : '';
-  });
-
-  // 编辑弹窗餐别切换时更新盲盒价格提示
-  document.getElementById('editMealType').addEventListener('change', function() {
-    var blindPrice = getBlindPrice(this.value);
-    document.getElementById('editBlindPriceInfo').querySelector('.price-info').textContent =
-      getBlindPriceText();
-    // 如果当前是盲盒模式，同步更新价格
-    var itemType = document.getElementById('editItemType').value;
-    if (itemType === 'blind') {
-      document.getElementById('editItemPrice').value = blindPrice.toFixed(2);
-    }
-  });
-
   document.getElementById('editOrderForm').addEventListener('submit', function(e) {
     e.preventDefault();
     if (!editingOrder) return;
 
     var order = editingOrder;
     var newMealType = document.getElementById('editMealType').value;
-    var itemType = document.getElementById('editItemType').value;
+    var menuId = document.getElementById('editMenuItem').value;
     var errorEl = document.getElementById('editOrderError');
     errorEl.textContent = '';
+
+    if (!menuId) { errorEl.textContent = '请选择餐品'; return; }
 
     var data = {
       userId: order.userId,
       personName: order.personName,
       date: order.date,
       mealType: newMealType,
-      itemType: itemType
+      itemType: 'menu',
+      menuId: menuId
     };
 
     // 如果餐别变了，传递旧餐别以便后端迁移订单
@@ -915,13 +909,9 @@
       data.oldMealType = order.mealType;
     }
 
-    if (itemType === 'custom') {
-      var itemName = document.getElementById('editItemName').value.trim();
-      var price = document.getElementById('editItemPrice').value;
-      if (!itemName) { errorEl.textContent = '请输入餐品名称'; return; }
-      if (!price || parseFloat(price) < 0) { errorEl.textContent = '请输入有效价格'; return; }
-      data.itemName = itemName;
-      data.price = price;
+    var noteVal = document.getElementById('editNote').value.trim();
+    if (noteVal) {
+      data.note = noteVal;
     }
 
     apiRequest('POST', 'create-order', data).then(function(result) {
@@ -1436,17 +1426,19 @@
         }
         var row = checkedRows[completedCount];
         var userId = row.querySelector('.user-checkbox').value;
-        var itemTypeSelect = row.querySelector('.item-type-select');
-        var itemType = itemTypeSelect ? itemTypeSelect.value : 'blind';
+        var menuSelect = row.querySelector('.menu-select');
+        var menuId = menuSelect ? menuSelect.value : '';
+        if (!menuId) { failedCount++; completedCount++; submitNext(); return; }
         var data = {
           userId: userId,
           date: date,
           mealType: mealType,
-          itemType: itemType
+          itemType: 'menu',
+          menuId: menuId
         };
-        if (itemType === 'custom') {
-          data.itemName = row.querySelector('.dish-name-input').value.trim();
-          data.price = row.querySelector('.price-input').value;
+        var noteInput = row.querySelector('.note-input');
+        if (noteInput && noteInput.value.trim()) {
+          data.note = noteInput.value.trim();
         }
         apiRequest('POST', 'create-order', data).then(function(result) {
           completedCount++;
@@ -1467,18 +1459,17 @@
       submitNext();
     } else {
       // 普通用户单人提交
-      var itemType = document.getElementById('itemType').value;
+      var menuId = document.getElementById('singleMenuItem').value;
+      if (!menuId) { showToast('请选择餐品', 'info'); return; }
       var data = {
         date: date,
         mealType: mealType,
-        itemType: itemType
+        itemType: 'menu',
+        menuId: menuId
       };
-
-      if (itemType === 'custom') {
-        data.itemName = document.getElementById('itemName').value.trim();
-        data.price = document.getElementById('itemPrice').value;
-        if (!data.itemName) { showToast('请输入餐品名称', 'error'); return; }
-        if (!data.price || parseFloat(data.price) < 0) { showToast('请输入有效价格', 'error'); return; }
+      var noteVal = document.getElementById('singleNote').value.trim();
+      if (noteVal) {
+        data.note = noteVal;
       }
 
       // 禁用提交按钮，防止重复提交
@@ -1490,8 +1481,9 @@
         submitBtn.textContent = '提交订单';
         if (result.success) {
           loadAllData();
-          document.getElementById('itemName').value = '';
-          document.getElementById('itemPrice').value = '';
+          document.getElementById('singleMenuItem').value = '';
+          document.getElementById('singleNote').value = '';
+          document.getElementById('singleMenuPrice').textContent = '';
         } else {
           showToast(result.message || '提交失败', 'error');
         }
@@ -1501,14 +1493,6 @@
         showToast('网络错误，请重试', 'error');
       });
     }
-  });
-
-  // ========== 餐品类型切换 ==========
-  document.getElementById('itemType').addEventListener('change', function() {
-    var isCustom = this.value === 'custom';
-    document.getElementById('customItemGroup').style.display = isCustom ? '' : 'none';
-    document.getElementById('customPriceGroup').style.display = isCustom ? '' : 'none';
-    document.getElementById('blindPriceInfo').style.display = isCustom ? 'none' : '';
   });
 
   // ========== 修改密码 ==========
@@ -1729,6 +1713,7 @@
   function updateActiveSidebarLink() {
     if (window.innerWidth <= 768) return;
     var sections = ['section-order', 'section-stats', 'section-orders', 'section-admin'];
+    sections.push('section-menu');
     sections.push('section-report');
     var scrollPos = window.scrollY + 100;
 
@@ -1937,6 +1922,77 @@
 
   document.getElementById('reportTabWeek').addEventListener('click', function() { loadReport('week'); });
   document.getElementById('reportTabMonth').addEventListener('click', function() { loadReport('month'); });
+
+  // ========== 菜单管理渲染 ==========
+  function renderMenuManager() {
+    var container = document.getElementById('menuList');
+    if (!container) return;
+    var html = '';
+    for (var i = 0; i < menuItems.length; i++) {
+      var m = menuItems[i];
+      html += '<div class="menu-item-row" data-id="' + escapeHtml(m.id) + '">';
+      html += '<span class="menu-item-drag">☰</span>';
+      html += '<input type="text" class="menu-item-name" value="' + escapeHtml(m.name) + '" placeholder="名称">';
+      html += '<input type="number" class="menu-item-price" value="' + m.price + '" step="1" min="0" style="width:64px">';
+      html += '<label class="menu-item-weight-label">权重 <input type="number" class="menu-item-weight" value="' + (m.weight || 0) + '" step="1" min="0" style="width:56px"></label>';
+      html += '<button class="btn btn-danger btn-small menu-item-del" data-id="' + escapeHtml(m.id) + '">×</button>';
+      html += '</div>';
+    }
+    container.innerHTML = html;
+  }
+
+  document.getElementById('addMenuItemBtn').addEventListener('click', function() {
+    var newId = 'm' + Date.now();
+    var newWeight = menuItems.length > 0 ? Math.max.apply(null, menuItems.map(function(m) { return m.weight || 0; })) + 1 : 100;
+    menuItems.push({ id: newId, name: '新餐品', price: 15, weight: newWeight });
+    renderMenuManager();
+    populateMenuDropdowns();
+  });
+
+  document.getElementById('saveMenuBtn').addEventListener('click', function() {
+    var rows = document.querySelectorAll('.menu-item-row');
+    var updated = [];
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      var id = row.getAttribute('data-id');
+      var nameInput = row.querySelector('.menu-item-name');
+      var priceInput = row.querySelector('.menu-item-price');
+      var weightInput = row.querySelector('.menu-item-weight');
+      if (!nameInput || !priceInput) continue;
+      var price = parseInt(priceInput.value) || 0;
+      if (price < 0) price = 0;
+      updated.push({
+        id: id,
+        name: nameInput.value.trim() || '未命名',
+        price: price,
+        weight: parseInt(weightInput.value) || 0
+      });
+    }
+    updated.sort(function(a, b) { return b.weight - a.weight; });
+    apiRequest('POST', 'update-menu', { menu: updated }).then(function(result) {
+      if (result.success) {
+        menuItems = updated;
+        menuItems.sort(function(a, b) { return b.weight - a.weight; });
+        populateMenuDropdowns();
+        populateBatchOrderTable();
+        showToast('菜单已保存', 'success');
+      } else {
+        showToast(result.message || '保存失败', 'error');
+      }
+    }).catch(function() {
+      showToast('网络错误', 'error');
+    });
+  });
+
+  document.getElementById('menuList').addEventListener('click', function(e) {
+    var target = e.target;
+    if (target.classList.contains('menu-item-del')) {
+      var id = target.getAttribute('data-id');
+      menuItems = menuItems.filter(function(m) { return m.id !== id; });
+      renderMenuManager();
+      populateMenuDropdowns();
+    }
+  });
 
   // ========== 启动 ==========
   tryAutoLogin();
