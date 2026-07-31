@@ -1830,9 +1830,14 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
     font-size: 18px;
   }
 
+  .batch-order-table {
+    overflow-x: auto;
+  }
+
   .batch-order-header,
   .batch-order-row {
     grid-template-columns: 28px 1fr 2fr 52px;
+    min-width: 340px;
     font-size: 12px;
   }
 

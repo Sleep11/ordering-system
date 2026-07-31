@@ -35,8 +35,15 @@ async function doRestore() {
     }
     if (records.length === 0) { s.textContent='未找到 records'; return; }
     s.textContent = '正在恢复 ' + records.length + ' 条...';
+    var savedLogin = null;
+    try { savedLogin = JSON.parse(localStorage.getItem('ordering_login') || 'null'); } catch(e) {}
+    if (!savedLogin || !savedLogin.token) {
+      s.textContent = '请先在主页面登录管理员账号后再恢复';
+      return;
+    }
     var form = new URLSearchParams();
     form.append('action','restore-kv');
+    form.append('token', savedLogin.token);
     form.append('records', JSON.stringify(records));
     var resp = await fetch('/api.node.js', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:form.toString() });
     var result = await resp.json();

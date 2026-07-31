@@ -25,6 +25,7 @@
   var MIN_REFRESH_INTERVAL = 3000;
   var USERS_REFRESH_INTERVAL = 30000;
   var ORDERS_REFRESH_INTERVAL = 8000;
+  var APP_VERSION = '2.3.7';
   var COLLAPSED_KEY = 'ordering_collapsed_sections';
   var DEFAULT_SAFE_USERS = [
     { id: 'admin_chenli', name: '陈立昊', role: 'admin' },
@@ -363,9 +364,6 @@
     if (lunchSelfPickToggle) lunchSelfPickToggle.checked = lunchSelfPick;
     var dinnerSelfPickToggle = document.getElementById('dinnerSelfPickToggle');
     if (dinnerSelfPickToggle) dinnerSelfPickToggle.checked = dinnerSelfPick;
-    // 更新价格提示文本
-    var blindPriceInfo = document.getElementById('blindPriceInfo');
-    // blindPriceInfo element removed, skip
   }
 
   function updateSetting(key, value) {
@@ -506,6 +504,16 @@
     roleBadge.textContent = currentUser.role === 'admin' ? '管理员' : '普通用户';
     roleBadge.className = 'role-badge ' + (currentUser.role === 'admin' ? 'admin' : 'user');
 
+    var versionBadge = document.getElementById('versionBadge');
+    if (versionBadge) {
+      versionBadge.textContent = 'v' + APP_VERSION;
+      versionBadge.style.display = currentUser.role === 'admin' ? '' : 'none';
+    }
+    var selfpickInline = document.getElementById('selfpickInline');
+    if (selfpickInline) {
+      selfpickInline.style.display = currentUser.role === 'admin' ? 'flex' : 'none';
+    }
+
     // 管理员显示侧边栏和用户管理区
     if (currentUser.role === 'admin') {
       document.getElementById('sidebar').classList.remove('hidden');
@@ -514,7 +522,6 @@
       document.getElementById('section-report').classList.remove('hidden');
       document.getElementById('userSelectGroup').style.display = '';
       document.getElementById('singleDishGroup').style.display = 'none';
-      document.getElementById('singleNoteGroup').style.display = 'none';
     } else {
       document.getElementById('sidebar').classList.add('hidden');
       document.getElementById('section-dish').classList.add('hidden');
@@ -522,24 +529,20 @@
       document.getElementById('section-report').classList.add('hidden');
       document.getElementById('userSelectGroup').style.display = 'none';
       document.getElementById('singleDishGroup').style.display = '';
-      document.getElementById('singleNoteGroup').style.display = '';
     }
 
     // 设置日期默认值
     var dateInput = document.getElementById('orderDate');
     dateInput.value = getChinaDate();
-    // 设置日期范围：前30天 ~ 后30天
     var chinaNow = new Date(new Date().getTime() + 8 * 60 * 60 * 1000);
     var minDate = new Date(chinaNow.getTime() - 30 * 24 * 60 * 60 * 1000);
     var maxDate = new Date(chinaNow.getTime() + 30 * 24 * 60 * 60 * 1000);
     dateInput.min = minDate.toISOString().split('T')[0];
     dateInput.max = maxDate.toISOString().split('T')[0];
 
-    // 根据当前时间自动选择餐别和日期
     // 8:00-11:30 午餐 / 11:30-20:30 晚餐 / 20:30-8:00 明天午餐
-    var now = new Date();
-    var nowHour = now.getHours();
-    var nowMin = now.getMinutes();
+    var nowHour = chinaNow.getUTCHours();
+    var nowMin = chinaNow.getUTCMinutes();
     var nowTotalMin = nowHour * 60 + nowMin;
     var mealSelect = document.getElementById('mealType');
     if (nowTotalMin >= 8 * 60 && nowTotalMin < 11 * 60 + 30) {
@@ -548,7 +551,6 @@
       mealSelect.value = 'dinner';
     } else {
       mealSelect.value = 'lunch';
-      var chinaNow = new Date(new Date().getTime() + 8 * 60 * 60 * 1000);
       var tomorrow = new Date(chinaNow.getTime() + 24 * 60 * 60 * 1000);
       dateInput.value = tomorrow.toISOString().split('T')[0];
     }
@@ -562,16 +564,18 @@
     if (currentUser.role === 'admin') {
       allUsers = getDefaultSafeUsers();
       renderAdminUsersArea();
-      // 用户管理默认折叠
-      var adminToggle = document.querySelector('.collapsible-toggle[data-section="admin"]');
-      var adminBody = document.querySelector('#section-admin .collapsible-body');
-      if (adminToggle && adminBody && !adminToggle.classList.contains('collapsed')) {
-        adminToggle.classList.add('collapsed');
-        adminBody.classList.add('collapsed');
-        var state = loadCollapsedState();
-        state['admin'] = true;
-        saveCollapsedState(state);
-      }
+      // 菜品管理和用户管理默认折叠
+      ['dish', 'admin'].forEach(function(section) {
+        var sectionToggle = document.querySelector('.collapsible-toggle[data-section="' + section + '"]');
+        var sectionBody = document.querySelector('#section-' + section + ' .collapsible-body');
+        if (sectionToggle && sectionBody && !sectionToggle.classList.contains('collapsed')) {
+          sectionToggle.classList.add('collapsed');
+          sectionBody.classList.add('collapsed');
+          var state = loadCollapsedState();
+          state[section] = true;
+          saveCollapsedState(state);
+        }
+      });
     }
 
     // 加载数据
@@ -584,16 +588,6 @@
     startAutoRefresh();
   }
 
-  // ========== 退出登录 ==========
-  document.getElementById('logoutBtn').addEventListener('click', function() {
-
-    // 版本号显示（仅管理员）
-    var versionBadge = document.getElementById('versionBadge');
-    if (versionBadge && currentUser.role === 'admin') {
-      versionBadge.textContent = 'v' + APP_VERSION;
-      versionBadge.style.display = '';
-    }
-
   // ========== 全局刷新按钮 ==========
   document.getElementById('refreshBtn').addEventListener('click', function() {
     lastRefreshTime = 0;
@@ -602,6 +596,7 @@
   });
 
   // ========== 退出登录 ==========
+  document.getElementById('logoutBtn').addEventListener('click', function() {
     apiRequest('POST', 'logout', {}).then(function() {
       var saved = loadLoginInfo();
       token = null;
@@ -909,8 +904,8 @@
 
     // 显示自取开关
     var selfpickInline = document.getElementById('selfpickInline');
-    if (selfpickInline && currentUser && currentUser.role === 'admin') {
-      selfpickInline.style.display = totalOrders > 0 ? 'flex' : 'none';
+    if (selfpickInline) {
+      selfpickInline.style.display = currentUser && currentUser.role === 'admin' ? 'flex' : 'none';
     }
   }
 
@@ -2070,7 +2065,7 @@
     populateDishDropdowns();
   });
 
-  document.getElementById('saveDishBtn').addEventListener('click', function() {
+  function saveDishManager() {
     var rows = document.querySelectorAll('.dish-item-row');
     if (rows.length === 0) { showToast('无菜品数据，请先添加', 'error'); return; }
     var updated = [];
@@ -2106,6 +2101,11 @@
     }).catch(function() {
       showToast('网络错误', 'error');
     });
+  }
+
+  document.getElementById('saveDishBtn').addEventListener('click', saveDishManager);
+  document.getElementById('dishList').addEventListener('change', function(e) {
+    if (e.target && e.target.classList.contains('dish-item-price')) saveDishManager();
   });
 
   document.getElementById('dishList').addEventListener('click', function(e) {
@@ -2182,4 +2182,3 @@
   }
 
 })();
-  var APP_VERSION = '2.3.5';
