@@ -2072,6 +2072,7 @@
 
   document.getElementById('saveDishBtn').addEventListener('click', function() {
     var rows = document.querySelectorAll('.dish-item-row');
+    if (rows.length === 0) { showToast('无菜品数据，请先添加', 'error'); return; }
     var updated = [];
     for (var i = 0; i < rows.length; i++) {
       var row = rows[i];
@@ -2089,6 +2090,7 @@
         weight: parseInt(weightInput.value) || 0
       });
     }
+    if (updated.length === 0) { showToast('菜品数据为空', 'error'); return; }
     updated.sort(function(a, b) { return b.weight - a.weight; });
     apiRequest('POST', 'update-menu', { menu: updated }).then(function(result) {
       if (result.success) {
