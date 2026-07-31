@@ -908,9 +908,9 @@
     document.getElementById('unpaidAmount').textContent = formatPrice(totalAmount - paidAmount);
 
     // 显示自取开关
-    var selfpickRow = document.getElementById('selfpickRow');
-    if (selfpickRow && currentUser && currentUser.role === 'admin') {
-      selfpickRow.style.display = totalOrders > 0 ? 'flex' : 'none';
+    var selfpickInline = document.getElementById('selfpickInline');
+    if (selfpickInline && currentUser && currentUser.role === 'admin') {
+      selfpickInline.style.display = totalOrders > 0 ? 'flex' : 'none';
     }
   }
 

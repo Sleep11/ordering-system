@@ -828,31 +828,38 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
 /* ============ 指标卡片 ============ */
 
-.selfpick-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-top: 14px;
-  padding: 10px 14px;
-  background: var(--primary-soft);
-  border-radius: var(--radius-sm);
-  flex-wrap: wrap;
-}
-.selfpick-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--primary);
-}
-.selfpick-toggle {
+.selfpick-inline {
   display: flex;
   align-items: center;
   gap: 6px;
-  cursor: pointer;
+  margin-left: auto;
+  flex-shrink: 0;
 }
-.selfpick-name {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text);
+.selfpick-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text-secondary);
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.selfpick-pill:has(input:checked) {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.selfpick-pill input {
+  display: none;
+}
+.selfpick-pill span {
+  user-select: none;
 }
 .metric-strip {
   display: grid;
@@ -1777,31 +1784,38 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   }
 
   
-.selfpick-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-top: 14px;
-  padding: 10px 14px;
-  background: var(--primary-soft);
-  border-radius: var(--radius-sm);
-  flex-wrap: wrap;
-}
-.selfpick-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--primary);
-}
-.selfpick-toggle {
+.selfpick-inline {
   display: flex;
   align-items: center;
   gap: 6px;
-  cursor: pointer;
+  margin-left: auto;
+  flex-shrink: 0;
 }
-.selfpick-name {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text);
+.selfpick-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text-secondary);
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.selfpick-pill:has(input:checked) {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.selfpick-pill input {
+  display: none;
+}
+.selfpick-pill span {
+  user-select: none;
 }
 .metric-strip {
     grid-template-columns: repeat(3, 1fr);
@@ -1851,7 +1865,16 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
     padding: 0 10px;
   }
 
-  .topbar-title {
+  
+  .selfpick-inline {
+    gap: 4px;
+  }
+  .selfpick-pill {
+    padding: 2px 8px;
+    font-size: 10px;
+  }
+
+.topbar-title {
     max-width: 120px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1876,31 +1899,38 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
 @media (max-width: 480px) {
   
-.selfpick-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-top: 14px;
-  padding: 10px 14px;
-  background: var(--primary-soft);
-  border-radius: var(--radius-sm);
-  flex-wrap: wrap;
-}
-.selfpick-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--primary);
-}
-.selfpick-toggle {
+.selfpick-inline {
   display: flex;
   align-items: center;
   gap: 6px;
-  cursor: pointer;
+  margin-left: auto;
+  flex-shrink: 0;
 }
-.selfpick-name {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text);
+.selfpick-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text-secondary);
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.selfpick-pill:has(input:checked) {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.selfpick-pill input {
+  display: none;
+}
+.selfpick-pill span {
+  user-select: none;
 }
 .metric-strip {
     grid-template-columns: repeat(2, 1fr);
