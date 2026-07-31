@@ -562,12 +562,7 @@
     // 自动加载本周报表
     setTimeout(function() {
       if (currentUser && currentUser.role !== 'admin') return;
-      // 默认最近七天
-      var toD = new Date(new Date().getTime() + 8 * 60 * 60 * 1000);
-      var fromD = new Date(toD.getTime() - 6 * 24 * 60 * 60 * 1000);
-      document.getElementById('reportDateFrom').value = fromD.toISOString().split('T')[0];
-      document.getElementById('reportDateTo').value = toD.toISOString().split('T')[0];
-      updateReportQuery();
+      loadReport('week');
     }, 500);
     startAutoRefresh();
   }
@@ -1955,11 +1950,7 @@
   }
 
   document.getElementById('reportTabWeek').addEventListener('click', function() {
-    var toD = new Date(new Date().getTime() + 8 * 60 * 60 * 1000);
-    var fromD = new Date(toD.getTime() - 6 * 24 * 60 * 60 * 1000);
-    document.getElementById('reportDateFrom').value = fromD.toISOString().split('T')[0];
-    document.getElementById('reportDateTo').value = toD.toISOString().split('T')[0];
-    updateReportQuery();
+    loadReport('week');
   });
   document.getElementById('reportTabMonth').addEventListener('click', function() { loadReport('month'); });
 
