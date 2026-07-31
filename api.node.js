@@ -195,6 +195,8 @@ async function handleGetSettings() {
     var dinnerLocked = await kv.get('settings_dinner_locked');
     var blindLunchPrice = await kv.get('settings_blind_lunch_price');
     var blindDinnerPrice = await kv.get('settings_blind_dinner_price');
+    var lunchSelfPick = await kv.get('settings_lunch_selfpick');
+    var dinnerSelfPick = await kv.get('settings_dinner_selfpick');
     return sendJSON({
       success: true,
       data: {
@@ -203,7 +205,9 @@ async function handleGetSettings() {
           lunchLocked: lunchLocked === 'true',
           dinnerLocked: dinnerLocked === 'true',
           blindLunchPrice: blindLunchPrice ? parseFloat(blindLunchPrice) : 11,
-          blindDinnerPrice: blindDinnerPrice ? parseFloat(blindDinnerPrice) : 12
+          blindDinnerPrice: blindDinnerPrice ? parseFloat(blindDinnerPrice) : 12,
+          lunchSelfPick: lunchSelfPick === 'true',
+          dinnerSelfPick: dinnerSelfPick === 'true'
         }
       }
     });

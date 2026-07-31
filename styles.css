@@ -819,6 +819,33 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 /* ============ 指标卡片 ============ */
+
+.selfpick-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: var(--primary-soft);
+  border-radius: var(--radius-sm);
+  flex-wrap: wrap;
+}
+.selfpick-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+}
+.selfpick-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.selfpick-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
 .metric-strip {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
@@ -1709,7 +1736,34 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
     align-items: stretch;
   }
 
-  .metric-strip {
+  
+.selfpick-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: var(--primary-soft);
+  border-radius: var(--radius-sm);
+  flex-wrap: wrap;
+}
+.selfpick-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+}
+.selfpick-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.selfpick-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+.metric-strip {
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
   }
@@ -1781,7 +1835,34 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 @media (max-width: 480px) {
-  .metric-strip {
+  
+.selfpick-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: var(--primary-soft);
+  border-radius: var(--radius-sm);
+  flex-wrap: wrap;
+}
+.selfpick-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+}
+.selfpick-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.selfpick-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+.metric-strip {
     grid-template-columns: repeat(2, 1fr);
   }
 

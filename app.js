@@ -9,6 +9,8 @@
   var allOrders = [];
   var expandedDates = {};
   var settings = { orderLocked: false, lunchLocked: false, dinnerLocked: false };
+  var lunchSelfPick = false;
+  var dinnerSelfPick = false;
   var dishItems = [];
   var dishLoaded = false;
   var blindLunchPrice = 11;
@@ -326,6 +328,8 @@
         settings = result.data.settings;
         blindLunchPrice = result.data.settings.blindLunchPrice || 11;
         blindDinnerPrice = result.data.settings.blindDinnerPrice || 12;
+        lunchSelfPick = result.data.settings.lunchSelfPick || false;
+        dinnerSelfPick = result.data.settings.dinnerSelfPick || false;
         settingsLoaded = true;
         updateSettingsUI();
         // 价格变化后更新批量订餐表格中的盲盒价格
@@ -355,6 +359,10 @@
     if (blindLunchInput) blindLunchInput.value = blindLunchPrice;
     var blindDinnerInput = document.getElementById('blindDinnerPrice');
     if (blindDinnerInput) blindDinnerInput.value = blindDinnerPrice;
+    var lunchSelfPickToggle = document.getElementById('lunchSelfPickToggle');
+    if (lunchSelfPickToggle) lunchSelfPickToggle.checked = lunchSelfPick;
+    var dinnerSelfPickToggle = document.getElementById('dinnerSelfPickToggle');
+    if (dinnerSelfPickToggle) dinnerSelfPickToggle.checked = dinnerSelfPick;
     // 更新价格提示文本
     var blindPriceInfo = document.getElementById('blindPriceInfo');
     // blindPriceInfo element removed, skip
@@ -865,10 +873,13 @@
       var o = allOrders[i];
       if (o.date === today) {
         totalOrders++;
-        totalAmount += o.price;
+        var price = o.price;
+        if (lunchSelfPick && o.mealType === 'lunch') price = Math.max(0, price - 1);
+        if (dinnerSelfPick && o.mealType === 'dinner') price = Math.max(0, price - 1);
+        totalAmount += price;
         if (o.paid) {
           paidCount++;
-          paidAmount += o.price;
+          paidAmount += price;
         }
       }
     }
@@ -879,6 +890,12 @@
     document.getElementById('totalAmount').textContent = formatPrice(totalAmount);
     document.getElementById('paidAmount').textContent = formatPrice(paidAmount);
     document.getElementById('unpaidAmount').textContent = formatPrice(totalAmount - paidAmount);
+
+    // 显示自取开关
+    var selfpickRow = document.getElementById('selfpickRow');
+    if (selfpickRow && currentUser && currentUser.role === 'admin') {
+      selfpickRow.style.display = totalOrders > 0 ? 'flex' : 'none';
+    }
   }
 
   // ========== 编辑订单弹窗 ==========
@@ -2081,6 +2098,43 @@
       renderDishManager();
       populateDishDropdowns();
     }
+  });
+
+  // ========== 自取优惠开关 ==========
+  document.getElementById('lunchSelfPickToggle').addEventListener('change', function() {
+    lunchSelfPick = this.checked;
+    updateSetting('settings_lunch_selfpick', lunchSelfPick).then(function(result) {
+      if (result.success) {
+        updateTodayStats();
+        renderOrders();
+      } else {
+        lunchSelfPick = !lunchSelfPick;
+        document.getElementById('lunchSelfPickToggle').checked = lunchSelfPick;
+        showToast(result.message || '操作失败', 'error');
+      }
+    }).catch(function() {
+      lunchSelfPick = !lunchSelfPick;
+      document.getElementById('lunchSelfPickToggle').checked = lunchSelfPick;
+      showToast('网络错误', 'error');
+    });
+  });
+
+  document.getElementById('dinnerSelfPickToggle').addEventListener('change', function() {
+    dinnerSelfPick = this.checked;
+    updateSetting('settings_dinner_selfpick', dinnerSelfPick).then(function(result) {
+      if (result.success) {
+        updateTodayStats();
+        renderOrders();
+      } else {
+        dinnerSelfPick = !dinnerSelfPick;
+        document.getElementById('dinnerSelfPickToggle').checked = dinnerSelfPick;
+        showToast(result.message || '操作失败', 'error');
+      }
+    }).catch(function() {
+      dinnerSelfPick = !dinnerSelfPick;
+      document.getElementById('dinnerSelfPickToggle').checked = dinnerSelfPick;
+      showToast('网络错误', 'error');
+    });
   });
 
   // ========== 菜品选择价格回显 ==========
