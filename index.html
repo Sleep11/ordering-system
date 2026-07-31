@@ -311,12 +311,21 @@
               </svg>
               周月报统计
             </h2>
-            <div class="report-tabs">
+            <div class="report-nav">
+              <button class="report-nav-btn" id="reportPrev" title="上一个">◀</button>
+              <div class="report-tabs">
               <button class="report-tab active" id="reportTabWeek">本周</button>
               <button class="report-tab" id="reportTabMonth">本月</button>
+              </div>
+              <button class="report-nav-btn" id="reportNext" title="下一个">▶</button>
             </div>
           </div>
           <div class="panel__body" id="reportBody">
+            <div class="report-date-row">
+              <label>从 <input type="date" id="reportDateFrom" class="report-date-input"></label>
+              <label>到 <input type="date" id="reportDateTo" class="report-date-input"></label>
+              <button class="btn btn-ghost btn-small" id="reportQueryBtn">查询</button>
+            </div>
             <div id="reportContainer">
               <div class="empty-state">点击上方选项卡加载数据</div>
             </div>

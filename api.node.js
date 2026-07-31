@@ -891,9 +891,14 @@ async function handleGetReport() {
 
     var body = req.body || {};
     var type = body.type || 'week'; // week | month
+    var fromDate = body.from;
+    var toDate = body.to;
 
     var range;
-    if (type === 'month') {
+    if (fromDate && toDate) {
+      range = { from: fromDate, to: toDate };
+      type = 'custom';
+    } else if (type === 'month') {
       range = getMonthDateRange();
     } else {
       range = getWeekDateRange(0);

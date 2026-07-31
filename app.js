@@ -1870,9 +1870,16 @@
   function loadReport(type) {
     type = type || currentReportType;
     currentReportType = type;
+    var fromEl = document.getElementById('reportDateFrom');
+    var toEl = document.getElementById('reportDateTo');
+    var data = { type: type };
+    if (fromEl && fromEl.value && toEl && toEl.value) {
+      data.from = fromEl.value;
+      data.to = toEl.value;
+    }
     var reportContainer = document.getElementById('reportContainer');
     if (reportContainer) reportContainer.innerHTML = '<div class="empty-state">加载中...</div>';
-    apiRequest('POST', 'get-report', { type: type }).then(function(result) {
+    apiRequest('POST', 'get-report', data).then(function(result) {
       if (result.success) {
         renderReport(result.data);
       } else {
@@ -1888,12 +1895,19 @@
     if (!container) return;
     var s = data.summary;
     var rangeText = data.range.from + ' ~ ' + data.range.to;
+    // 更新日期输入框
+    var fromEl = document.getElementById('reportDateFrom');
+    var toEl = document.getElementById('reportDateTo');
+    if (fromEl && toEl && data.type !== 'custom') {
+      fromEl.value = data.range.from;
+      toEl.value = data.range.to;
+    }
 
     // 更新 tab 激活状态
     var weekTab = document.getElementById('reportTabWeek');
     var monthTab = document.getElementById('reportTabMonth');
     if (weekTab && monthTab) {
-      weekTab.classList.toggle('active', data.type === 'week');
+      weekTab.classList.toggle('active', data.type === 'week' || data.type === 'custom');
       monthTab.classList.toggle('active', data.type === 'month');
     }
 
@@ -1933,6 +1947,61 @@
 
   document.getElementById('reportTabWeek').addEventListener('click', function() { loadReport('week'); });
   document.getElementById('reportTabMonth').addEventListener('click', function() { loadReport('month'); });
+
+  // 报表日期导航
+  document.getElementById('reportPrev').addEventListener('click', function() {
+    var fromEl = document.getElementById('reportDateFrom');
+    if (!fromEl || !fromEl.value) { loadReport('week'); return; }
+    var d = new Date(fromEl.value + 'T00:00:00+08:00');
+    if (currentReportType === 'month') {
+      d.setUTCMonth(d.getUTCMonth() - 1);
+    } else {
+      d.setUTCDate(d.getUTCDate() - 7);
+    }
+    fromEl.value = d.toISOString().split('T')[0];
+    var toD = new Date(d);
+    if (currentReportType === 'month') {
+      toD.setUTCMonth(toD.getUTCMonth() + 1);
+      toD.setUTCDate(0);
+    } else {
+      toD.setUTCDate(toD.getUTCDate() + 6);
+    }
+    document.getElementById('reportDateTo').value = toD.toISOString().split('T')[0];
+    updateReportQuery();
+  });
+
+  document.getElementById('reportNext').addEventListener('click', function() {
+    var fromEl = document.getElementById('reportDateFrom');
+    if (!fromEl || !fromEl.value) { loadReport('week'); return; }
+    var d = new Date(fromEl.value + 'T00:00:00+08:00');
+    if (currentReportType === 'month') {
+      d.setUTCMonth(d.getUTCMonth() + 1);
+    } else {
+      d.setUTCDate(d.getUTCDate() + 7);
+    }
+    fromEl.value = d.toISOString().split('T')[0];
+    var toD = new Date(d);
+    if (currentReportType === 'month') {
+      toD.setUTCMonth(toD.getUTCMonth() + 1);
+      toD.setUTCDate(0);
+    } else {
+      toD.setUTCDate(toD.getUTCDate() + 6);
+    }
+    document.getElementById('reportDateTo').value = toD.toISOString().split('T')[0];
+    updateReportQuery();
+  });
+
+  document.getElementById('reportQueryBtn').addEventListener('click', function() {
+    updateReportQuery();
+  });
+
+  function updateReportQuery() {
+    var from = document.getElementById('reportDateFrom').value;
+    var to = document.getElementById('reportDateTo').value;
+    if (from && to) {
+      loadReport('custom');
+    }
+  }
 
   // ========== 菜单管理渲染 ==========
   function renderMenuManager() {
