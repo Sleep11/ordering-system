@@ -13,6 +13,7 @@
   var dinnerSelfPick = false;
   var dishItems = [];
   var dishLoaded = false;
+  var lastDishManagerSignature = '';
   var blindLunchPrice = 11;
   var blindDinnerPrice = 12;
   var refreshTimer = null;
@@ -21,11 +22,12 @@
   var lastRefreshTime = 0;
   var lastOrdersHash = '';
   var lastUsersSignature = '';
+  var lastUsersLoadTime = 0;
   var API_BASE = '/api.node.js';
   var MIN_REFRESH_INTERVAL = 3000;
   var USERS_REFRESH_INTERVAL = 30000;
   var ORDERS_REFRESH_INTERVAL = 8000;
-  var APP_VERSION = '2.3.7';
+  var APP_VERSION = '2.3.9';
   var COLLAPSED_KEY = 'ordering_collapsed_sections';
   var DEFAULT_SAFE_USERS = [
     { id: 'admin_chenli', name: '陈立昊', role: 'admin' },
@@ -76,7 +78,7 @@
     // 入场动画
     requestAnimationFrame(function() { toast.classList.add('toast-enter'); });
     // 自动移除
-    var duration = type === 'error' ? 4000 : 2500;
+    var duration = type === 'error' ? 6000 : 4500;
     setTimeout(function() {
       toast.classList.add('toast-exit');
       toast.addEventListener('transitionend', function() { toast.remove(); });
@@ -137,6 +139,30 @@
     var num = parseFloat(price);
     if (isNaN(num)) return '¥0.00';
     return '¥' + num.toFixed(2);
+  }
+
+  function getOrderDiscount(order) {
+    if (typeof order.discount === 'number') return order.discount;
+    var today = getChinaDate();
+    if (order.date === today && order.mealType === 'lunch' && lunchSelfPick) return 1;
+    if (order.date === today && order.mealType === 'dinner' && dinnerSelfPick) return 1;
+    return 0;
+  }
+
+  function getOrderReceivable(order) {
+    if (typeof order.receivable === 'number') return order.receivable;
+    var price = parseFloat(order.price) || 0;
+    return Math.max(0, price - getOrderDiscount(order));
+  }
+
+  function getOrderActual(order) {
+    if (typeof order.actual === 'number') return order.actual;
+    return order.paid ? getOrderReceivable(order) : 0;
+  }
+
+  function getOrderRefund(order) {
+    if (typeof order.refund === 'number') return order.refund;
+    return order.paid ? getOrderDiscount(order) : 0;
   }
 
   function getMealTypeName(type) {
@@ -275,6 +301,7 @@
         }
         if (currentUser && currentUser.role === 'admin') {
           renderDishManager();
+          lastDishManagerSignature = getDishManagerSignature();
         }
       }
     }).catch(function() {});
@@ -591,6 +618,7 @@
   // ========== 全局刷新按钮 ==========
   document.getElementById('refreshBtn').addEventListener('click', function() {
     lastRefreshTime = 0;
+    lastUsersLoadTime = 0;
     loadAllData();
     showToast('数据已刷新', 'success');
   });
@@ -604,6 +632,7 @@
       allUsers = [];
       allOrders = [];
       lastUsersSignature = '';
+      lastUsersLoadTime = 0;
       stopAutoRefresh();
       // 如果用户之前勾选了"记住密码"，保留用户名和密码，只清除 token
       // 下次打开页面时会自动重新登录获取新 token
@@ -663,8 +692,10 @@
     
     // 管理员额外独立加载用户列表（不依赖订单加载完成）
     if (currentUser && currentUser.role === 'admin') {
-      // 如果是首次加载或超过刷新间隔
-      loadUsersForAdmin();
+      if (now - lastUsersLoadTime >= USERS_REFRESH_INTERVAL) {
+        lastUsersLoadTime = now;
+        loadUsersForAdmin();
+      }
     }
   }
 
@@ -702,6 +733,7 @@
       loginPage.style.opacity = '';
     }, 700);
     lastUsersSignature = '';
+    lastUsersLoadTime = 0;
   }
 
   // 保存容器内所有展开的确认框 ID（用于 DOM 重建后恢复）
@@ -879,18 +911,17 @@
     var paidCount = 0;
     var totalAmount = 0;
     var paidAmount = 0;
+    var refundAmount = 0;
 
     for (var i = 0; i < allOrders.length; i++) {
       var o = allOrders[i];
       if (o.date === today) {
         totalOrders++;
-        var price = o.price;
-        if (lunchSelfPick && o.mealType === 'lunch') price = Math.max(0, price - 1);
-        if (dinnerSelfPick && o.mealType === 'dinner') price = Math.max(0, price - 1);
-        totalAmount += price;
+        totalAmount += getOrderReceivable(o);
         if (o.paid) {
           paidCount++;
-          paidAmount += price;
+          paidAmount += getOrderActual(o);
+          refundAmount += getOrderRefund(o);
         }
       }
     }
@@ -901,6 +932,8 @@
     document.getElementById('totalAmount').textContent = formatPrice(totalAmount);
     document.getElementById('paidAmount').textContent = formatPrice(paidAmount);
     document.getElementById('unpaidAmount').textContent = formatPrice(totalAmount - paidAmount);
+    var refundEl = document.getElementById('refundAmount');
+    if (refundEl) refundEl.textContent = formatPrice(refundAmount);
 
     // 显示自取开关
     var selfpickInline = document.getElementById('selfpickInline');
@@ -1069,7 +1102,7 @@
       var orderCount = orders.length;
       var paidCount = orders.filter(function(o) { return o.paid; }).length;
       var unpaidCount = orderCount - paidCount;
-      var totalAmount = orders.reduce(function(sum, o) { return sum + o.price; }, 0);
+      var totalAmount = orders.reduce(function(sum, o) { return sum + getOrderReceivable(o); }, 0);
 
       html += '<div class="date-group" data-date="' + escapeHtml(date) + '">';
       html += '<div class="date-header' + (isToday ? ' today' : '') + '" data-date="' + escapeHtml(date) + '">';
@@ -1133,12 +1166,8 @@
     }
 
     var summaryText = getMealSummary(orders);
-    var today = getChinaDate();
     var totalPrice = orders.reduce(function(sum, o) {
-      var p = o.price;
-      if (date === today && lunchSelfPick && mealType === 'lunch') p = Math.max(0, p - 1);
-      if (date === today && dinnerSelfPick && mealType === 'dinner') p = Math.max(0, p - 1);
-      return sum + p;
+      return sum + getOrderReceivable(o);
     }, 0);
     var paidAll = orders.every(function(o) { return o.paid; });
     var paidNone = orders.every(function(o) { return !o.paid; });
@@ -1189,7 +1218,16 @@
       html += '<span class="order-detail">';
       html += '<span class="item-name">' + escapeHtml(o.itemName) + '</span>';
       html += '</span>';
-      html += '<span class="order-price">' + formatPrice(o.price) + '</span>';
+      var receivable = getOrderReceivable(o);
+      var discount = getOrderDiscount(o);
+      var actual = getOrderActual(o);
+      var refund = getOrderRefund(o);
+      html += '<span class="order-money">';
+      html += '<span class="money-item"><span class="money-label">应收</span>' + formatPrice(receivable) + '</span>';
+      html += '<span class="money-item' + (discount > 0 ? ' money-discount' : '') + '"><span class="money-label">减免</span>' + (discount > 0 ? '-' : '') + formatPrice(discount) + '</span>';
+      html += '<span class="money-item"><span class="money-label">实收</span>' + formatPrice(actual) + '</span>';
+      html += '<span class="money-item' + (refund > 0 ? ' money-refund' : '') + '"><span class="money-label">退款</span>' + formatPrice(refund) + '</span>';
+      html += '</span>';
 
       if (o.paid) {
         html += '<span class="order-paid-badge paid paid-dot">已付</span>';
@@ -2056,6 +2094,24 @@
     container.innerHTML = html;
   }
 
+  function getDishManagerSignature() {
+    var rows = document.querySelectorAll('.dish-item-row');
+    var parts = [];
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      var nameInput = row.querySelector('.dish-item-name');
+      var priceInput = row.querySelector('.dish-item-price');
+      var weightInput = row.querySelector('.dish-item-weight');
+      parts.push([
+        row.getAttribute('data-id'),
+        nameInput ? (nameInput.value.trim() || '未命名') : '',
+        priceInput ? (parseInt(priceInput.value) || 0) : '',
+        weightInput ? (parseInt(weightInput.value) || 0) : ''
+      ].join('|'));
+    }
+    return parts.join('~');
+  }
+
   document.getElementById('addDishItemBtn').addEventListener('click', function() {
     var newId = 'm' + Date.now();
     var newWeight = dishItems.length > 0 ? Math.max.apply(null, dishItems.map(function(m) { return m.weight || 0; })) + 1 : 100;
@@ -2087,11 +2143,16 @@
     }
     if (updated.length === 0) { showToast('菜品数据为空', 'error'); return; }
     updated.sort(function(a, b) { return b.weight - a.weight; });
+    var signature = updated.map(function(m) {
+      return m.id + '|' + m.name + '|' + m.price + '|' + m.weight;
+    }).join('~');
+    if (signature === lastDishManagerSignature) return;
     apiRequest('POST', 'update-menu', { menu: updated }).then(function(result) {
       if (result.success) {
         menuOptsCache = '';
         dishItems = updated;
         dishItems.sort(function(a, b) { return b.weight - a.weight; });
+        lastDishManagerSignature = signature;
         populateDishDropdowns();
         populateBatchOrderTable();
         showToast('菜品已保存', 'success');
@@ -2124,8 +2185,9 @@
     lunchSelfPick = this.checked;
     updateSetting('settings_lunch_selfpick', lunchSelfPick).then(function(result) {
       if (result.success) {
-        updateTodayStats();
-        renderOrders();
+        lastRefreshTime = 0;
+        loadAllData();
+        showToast('午餐自取减免已更新', 'success');
       } else {
         lunchSelfPick = !lunchSelfPick;
         document.getElementById('lunchSelfPickToggle').checked = lunchSelfPick;
@@ -2142,8 +2204,9 @@
     dinnerSelfPick = this.checked;
     updateSetting('settings_dinner_selfpick', dinnerSelfPick).then(function(result) {
       if (result.success) {
-        updateTodayStats();
-        renderOrders();
+        lastRefreshTime = 0;
+        loadAllData();
+        showToast('晚餐自取减免已更新', 'success');
       } else {
         dinnerSelfPick = !dinnerSelfPick;
         document.getElementById('dinnerSelfPickToggle').checked = dinnerSelfPick;

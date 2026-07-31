@@ -39,6 +39,90 @@ function getWeekDateRange(offsetWeek) {
   };
 }
 
+async function readOrderKeysInBatches(keys) {
+  var orders = [];
+  var BATCH_SIZE = 10;
+  for (var i = 0; i < keys.length; i += BATCH_SIZE) {
+    var batch = keys.slice(i, i + BATCH_SIZE);
+    var results = await Promise.all(batch.map(function(key) {
+      return kv.getJSON(key);
+    }));
+    for (var j = 0; j < results.length; j++) {
+      if (results[j]) orders.push(results[j]);
+    }
+  }
+  return orders;
+}
+
+var ORDER_SCHEMA_VERSION = 'order_schema_v1';
+
+function getOrderDiscountValue(order, lunchSelfPick, dinnerSelfPick) {
+  if (typeof order.discount === 'number') return order.discount;
+  var discount = 0;
+  if (order.date === getChinaDate() && order.mealType === 'lunch' && lunchSelfPick) discount = 1;
+  if (order.date === getChinaDate() && order.mealType === 'dinner' && dinnerSelfPick) discount = 1;
+  return discount;
+}
+
+function normalizeOrderMoney(order, lunchSelfPick, dinnerSelfPick) {
+  var price = parseFloat(order.price) || 0;
+  var discount = getOrderDiscountValue(order, lunchSelfPick, dinnerSelfPick);
+  if (typeof order.discount !== 'number') order.discount = discount;
+  if (typeof order.receivable !== 'number') order.receivable = Math.max(0, price - order.discount);
+  if (typeof order.actual !== 'number') order.actual = order.paid ? order.receivable : 0;
+  if (typeof order.refund !== 'number') order.refund = order.paid ? order.discount : 0;
+  return order;
+}
+
+async function migrateOrderSchema() {
+  try {
+    var version = await kv.get('settings_order_schema_version');
+    if (version === ORDER_SCHEMA_VERSION) return;
+
+    var lunchSelfPick = await kv.get('settings_lunch_selfpick') === 'true';
+    var dinnerSelfPick = await kv.get('settings_dinner_selfpick') === 'true';
+    var allKeys = await kv.listKeys();
+    var updated = 0;
+    for (var i = 0; i < allKeys.length; i++) {
+      var key = allKeys[i];
+      if (key.indexOf('order_') !== 0) continue;
+      var order = await kv.getJSON(key);
+      if (!order) continue;
+      var before = JSON.stringify(order);
+      normalizeOrderMoney(order, lunchSelfPick, dinnerSelfPick);
+      if (JSON.stringify(order) !== before) {
+        kv.setJSON(key, order);
+        updated++;
+      }
+    }
+    kv.set('settings_order_schema_version', ORDER_SCHEMA_VERSION);
+  } catch (e) {
+    // 迁移失败不阻塞业务，下次请求会重试
+  }
+}
+
+async function applySelfPickDiscountToToday(key, enabled) {
+  var mealType = key === 'settings_lunch_selfpick' ? 'lunch' : 'dinner';
+  var date = getChinaDate();
+  var allKeys = await kv.listKeys();
+  for (var i = 0; i < allKeys.length; i++) {
+    var orderKey = allKeys[i];
+    if (orderKey.indexOf('order_') !== 0) continue;
+    var parts = orderKey.split('_');
+    if (parts.length < 3 || parts[1] !== date) continue;
+    if (parts[parts.length - 1] !== mealType) continue;
+    var order = await kv.getJSON(orderKey);
+    if (!order) continue;
+    var price = parseFloat(order.price) || 0;
+    order.discount = enabled ? 1 : 0;
+    order.receivable = Math.max(0, price - order.discount);
+    order.actual = order.paid ? order.receivable : 0;
+    order.refund = order.paid ? order.discount : 0;
+    order.updatedAt = new Date().toISOString();
+    kv.setJSON(orderKey, order);
+  }
+}
+
 async function readUsersWithRetry(maxAttempts) {
   maxAttempts = maxAttempts || 3;
   for (var attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -135,6 +219,7 @@ function handleOptions() {
 async function handleRequest() {
   // 初始化
   await initDefaultUsers();
+  await migrateOrderSchema();
   
   var method = req.method;
   
@@ -249,6 +334,9 @@ async function handleUpdateSettings() {
     }
 
     kv.set(key, String(value));
+    if (key === 'settings_lunch_selfpick' || key === 'settings_dinner_selfpick') {
+      await applySelfPickDiscountToToday(key, String(value) === 'true');
+    }
 
     return sendJSON({ success: true, message: '设置更新成功' });
   } catch (e) {
@@ -613,20 +701,21 @@ async function handleGetOrders() {
       d.setUTCDate(d.getUTCDate() + 1);
     }
     
-    var orders = [];
     var allKeys = await kv.listKeys();
+    var matchedKeys = [];
     
-    // 单次遍历：筛选 order_ 前缀且日期在七天内的 key
+    // 单次遍历：筛选 order_ 前缀且日期在当前月份的 key
     for (var j = 0; j < allKeys.length; j++) {
       var key = allKeys[j];
       if (key.indexOf('order_') === 0) {
         var parts = key.split('_');
         if (parts.length >= 2 && dateSet[parts[1]]) {
-          var order = await kv.getJSON(key);
-          if (order) orders.push(order);
+          matchedKeys.push(key);
         }
       }
     }
+
+    var orders = await readOrderKeysInBatches(matchedKeys);
     
     return sendJSON({ success: true, data: { orders: orders } });
   } catch (e) {
@@ -751,6 +840,15 @@ async function handleCreateOrder() {
         return sendJSON({ success: false, message: '系统已锁定，当前不允许修改餐品' }, 403);
       }
     }
+
+    var lunchSelfPickSetting = await kv.get('settings_lunch_selfpick') === 'true';
+    var dinnerSelfPickSetting = await kv.get('settings_dinner_selfpick') === 'true';
+    var discount = 0;
+    if (date === getChinaDate() && mealType === 'lunch' && lunchSelfPickSetting) discount = 1;
+    if (date === getChinaDate() && mealType === 'dinner' && dinnerSelfPickSetting) discount = 1;
+    var receivable = Math.max(0, price - discount);
+    var actual = existingOrder && existingOrder.paid ? receivable : 0;
+    var refund = existingOrder && existingOrder.paid ? discount : 0;
     
     var now = new Date().toISOString();
     var order = {
@@ -762,6 +860,10 @@ async function handleCreateOrder() {
       itemType: itemType,
       itemName: itemName,
       price: price,
+      receivable: receivable,
+      discount: discount,
+      actual: actual,
+      refund: refund,
       paid: existingOrder ? existingOrder.paid : false,
       paidAt: existingOrder ? existingOrder.paidAt : null,
       createdAt: existingOrder ? existingOrder.createdAt : now,
@@ -876,9 +978,14 @@ async function handleUpdatePayment() {
     }
     
     var paid = body.paid !== undefined ? (body.paid === 'true' || body.paid === true) : !order.paid;
+    var lunchSelfPickSetting = await kv.get('settings_lunch_selfpick') === 'true';
+    var dinnerSelfPickSetting = await kv.get('settings_dinner_selfpick') === 'true';
+    normalizeOrderMoney(order, lunchSelfPickSetting, dinnerSelfPickSetting);
     
     order.paid = paid;
     order.paidAt = paid ? new Date().toISOString() : null;
+    order.actual = paid ? order.receivable : 0;
+    order.refund = paid ? order.discount : 0;
     order.updatedAt = new Date().toISOString();
     
     kv.setJSON(orderId, order);
@@ -913,7 +1020,7 @@ async function handleGetReport() {
     }
 
     var allKeys = await kv.listKeys();
-    var orders = [];
+    var matchedKeys = [];
     for (var j = 0; j < allKeys.length; j++) {
       var key = allKeys[j];
       if (key.indexOf('order_') === 0) {
@@ -921,12 +1028,13 @@ async function handleGetReport() {
         if (parts.length >= 2) {
           var orderDate = parts[1];
           if (orderDate >= range.from && orderDate <= range.to) {
-            var order = await kv.getJSON(key);
-            if (order) orders.push(order);
+            matchedKeys.push(key);
           }
         }
       }
     }
+
+    var orders = await readOrderKeysInBatches(matchedKeys);
 
     // 汇总统计
     var totalOrders = orders.length;
@@ -1080,6 +1188,9 @@ async function handleUpdateMenu() {
 
     var body = req.body || {};
     var menu = body.menu;
+    if (typeof menu === 'string') {
+      try { menu = JSON.parse(menu); } catch(e) {}
+    }
     if (!Array.isArray(menu)) {
       return sendJSON({ success: false, message: '菜单数据格式错误' }, 400);
     }
@@ -1087,6 +1198,18 @@ async function handleUpdateMenu() {
     for (var i = 0; i < menu.length; i++) {
       if (!menu[i].id || !menu[i].name || menu[i].price === undefined) {
         return sendJSON({ success: false, message: '菜单项缺少必要字段' }, 400);
+      }
+    }
+
+    var currentMenu = await getMenu();
+    for (var i = 0; i < menu.length; i++) {
+      if (menu[i].note === undefined) {
+        for (var j = 0; j < currentMenu.length; j++) {
+          if (currentMenu[j].id === menu[i].id && currentMenu[j].note) {
+            menu[i].note = currentMenu[j].note;
+            break;
+          }
+        }
       }
     }
 

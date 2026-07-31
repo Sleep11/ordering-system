@@ -1,7 +1,7 @@
 # 多人在线点餐系统 — 项目文档
 
 > 基于 Retinbox (热铁盒) Web Hosting 的全栈点餐系统。
-> 支持多用户、48 款菜品菜单、午餐/晚餐分时段管理、自取减免、周月报统计。
+> 支持多用户、48 款菜品菜单（当前默认数据 47 款，待确认补齐）、午餐/晚餐分时段管理、自取减免、周月报统计。
 > GitHub push 自动部署，零运维。
 
 ---
@@ -20,6 +20,8 @@
 - [自动部署 (GitHub Actions)](#自动部署-github-actions)
 - [数据恢复](#数据恢复)
 - [常见维护操作](#常见维护操作)
+- [性能与移动端 QA](#性能与移动端-qa)
+- [已知限制](#已知限制)
 - [开发规范](#开发规范)
 - [常见问题](#常见问题)
 - [变更记录](#变更记录)
@@ -92,6 +94,7 @@ Retinbox KV 数据库 (database: ordering)
 | `package.json` | npm 脚本：`npm run deploy` |
 | `.github/workflows/deploy.yml` | GitHub Actions：push main 自动部署 |
 | `restore.html` | 数据恢复工具：粘贴 KV 备份 JSON 一键恢复 |
+| `QA.md` | 深度检测、性能优化和桌面/移动端布局验证记录 |
 
 ---
 
@@ -114,6 +117,7 @@ Retinbox KV 数据库 (database: ordering)
 | `settings_lunch_selfpick` | Bool 字符串 | 午餐自取减免开关 |
 | `settings_dinner_selfpick` | Bool 字符串 | 晚餐自取减免开关 |
 | `settings_menu` | JSON 数组 | 菜品列表 (id/name/price/weight) |
+| `settings_order_schema_version` | 字符串 | 订单金额字段自动迁移版本号 |
 | `login_fails_{userId}` | 数字 | 登录失败计数 (5 次锁定 15 分钟) |
 | `login_lock_{userId}` | JSON | 登录锁定信息 (lockUntil) |
 
@@ -129,6 +133,10 @@ Retinbox KV 数据库 (database: ordering)
   "itemType": "menu",
   "itemName": "炒冷面",
   "price": 14,
+  "receivable": 14,
+  "discount": 0,
+  "actual": 0,
+  "refund": 0,
   "paid": false,
   "paidAt": null,
   "createdAt": "2026-07-31T04:00:00.000Z",
@@ -149,6 +157,20 @@ Retinbox KV 数据库 (database: ordering)
 ```
 
 权重越高排序越靠前，管理员可在菜品管理面板中调整。
+
+当前 `getDefaultMenu()` 实际返回 `m001` 至 `m047` 共 47 款，需求为 48 款；缺第 48 款菜名、价格和权重，需确认后补充，未擅自新增菜品。
+
+### 订单金额字段
+
+| 字段 | 含义 |
+|---|---|
+| `price` | 餐品原价 |
+| `receivable` | 应收金额，默认等于原价，自取减免开启后减 1 |
+| `discount` | 减免金额，午餐/晚餐自取减免为 1，否则为 0 |
+| `actual` | 实收金额，已付款时等于应收，未付款时为 0 |
+| `refund` | 退款金额，已付款且享受减免时为 1，否则为 0 |
+
+部署新版本后，后端会在首次请求时自动执行一次订单字段迁移；之后管理员切换当日午餐/晚餐自取减免时，也会自动重算当天对应餐别的订单金额。
 
 ---
 
@@ -248,7 +270,7 @@ var lunchSelfPick = false;     // 午餐自取减免
 var dinnerSelfPick = false;    // 晚餐自取减免
 var blindLunchPrice = 11;      // 午餐盲盒价
 var blindDinnerPrice = 12;     // 晚餐盲盒价
-var APP_VERSION = '2.3.7';     // 版本号
+var APP_VERSION = '2.3.9';     // 版本号
 ```
 
 ### 数据流
@@ -502,7 +524,45 @@ deno -Ar https://host.retiehe.com/cli watch
 ```js
 var ORDERS_REFRESH_INTERVAL = 8000;   // 默认 8 秒
 var MIN_REFRESH_INTERVAL = 3000;       // 最小间隔 3 秒
+var USERS_REFRESH_INTERVAL = 30000;    // 管理员用户列表刷新间隔
 ```
+
+---
+
+## 性能与移动端 QA
+
+### 性能优化
+- 管理员用户列表改为 30 秒限频，不再随 8 秒订单刷新重复请求。
+- 菜品保存增加签名去重，价格失焦自动保存后，再点“保存菜品”不会重复提交。
+- 订单和报表的 KV 读取改为每批 10 条并发读取，避免大量订单时逐条串行等待。
+- 8 秒订单自动刷新仍保留哈希对比，数据未变化时跳过 DOM 重建。
+- 清理了 CSS 中重复的移动端规则和已移除的 `col-note` 样式。
+
+### 桌面与移动端验证
+- 桌面：1440×900 无横向溢出，顶栏、侧边栏、面板、批量表格布局正常。
+- 移动端：390×844 和 320×568 均无页面横向溢出。
+- 320px 下“今日统计”标题与自取按钮自动换行，按钮占满标题栏第二行，避免被面板裁剪。
+- 批量表格在移动端使用 `overflow-x: auto`，列宽不足时表格内部横向滚动。
+- 移动端表单控件字号调整为 16px，降低 iOS 聚焦时自动放大页面。
+- HTML `label for` 已修正，移除缺失 `</head>` 问题。
+
+### 验证命令
+```bash
+node --check app.js
+node --check api.node.js
+node --check auth.node.js
+node --check kv-adapter.node.js
+```
+完整 Playwright 回归记录见 [QA.md](QA.md)。
+
+---
+
+## 已知限制
+- Retinbox 平台会覆盖 API 的 `Cache-Control` 响应头，线上实测为 `private, max-age=1`，不是代码设置的 `no-store`；若要求严格 no-store 需联系 Retinbox 支持。
+- Retinbox 会把静态资源 URL 重写为 CDN 哈希地址，原始 `?v=版本号` 参数不会出现在最终 HTML；版本号仍通过顶部徽章和 CDN URL 变化体现。
+- “记住密码”目前把明文密码保存在浏览器 `localStorage`，存在本机泄露风险；如要彻底改善，需要改为服务端可撤销的刷新令牌方案。
+- `bawei-kv.json` 含用户密码哈希、会话和订单数据，已加入 `.gitignore`，不应提交到 Git。
+- 仓库 `origin` 当前仍嵌入 GitHub token，建议尽快改回普通 HTTPS remote，并撤销该 token。
 
 ---
 
@@ -571,6 +631,29 @@ Ctrl+Shift+R 强制刷新。如果仍不行，检查顶部栏版本号是否最�
 ---
 
 ## 变更记录
+
+### v2.3.9 (2026-07-31)
+- 新增：订单金额字段 `receivable`、`discount`、`actual`、`refund`
+- 新增：部署后自动执行订单字段数据库迁移
+- 新增：切换当日午餐/晚餐自取减免时自动重算当天订单并更新退款
+- 新增：今日统计退款金额卡片
+- 订单卡片显示应收、减免、实收、退款
+- 修复：保存菜品 `菜单数据格式错误`，后端兼容表单提交的 JSON 字符串
+- 优化：菜品管理名称输入框不再无限拉伸
+- 优化：右下角 Toast 停留时间延长到 4.5 秒，错误提示 6 秒
+- 更新：版本号升级到 `v2.3.9`
+
+### v2.3.8 (2026-07-31)
+- 性能：管理员用户列表 30 秒限频
+- 性能：菜品保存签名去重，避免重复请求
+- 性能：订单/报表 KV 读取改为每批 10 条并发
+- 修复：保存菜品时保留已有 `note` 字段
+- 移动端：320px 下自取按钮自动换行/满宽
+- 移动端：表单控件 16px，降低 iOS 聚焦缩放
+- 清理：移除 CSS 重复规则和无效 `col-note` 样式
+- 修复：HTML `label for` 关联和缺失 `</head>`
+- 文档：新增性能、移动端 QA 和已知限制说明
+- 更新：版本号升级到 `v2.3.8`
 
 ### v2.3.7 (2026-07-31)
 - 修复：登录后因已移除的 `singleNoteGroup` 引用导致主页面初始化中断，日期/餐别/菜品/刷新均未加载
