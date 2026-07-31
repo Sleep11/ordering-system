@@ -91,6 +91,27 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 .hidden { display: none !important; }
 
 /* ============ 按钮 ============ */
+
+.btn-refresh {
+  background: #1e293b;
+  color: #fff;
+  border: none;
+  padding: 5px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.btn-refresh:hover {
+  background: #0f172a;
+}
+
+.btn-refresh:active {
+  transform: scale(0.96);
+}
+
 .btn {
   display: inline-flex;
   align-items: center;

@@ -554,11 +554,22 @@
 
     // 加载数据
     loadAllData();
+    // 自动加载本周报表
+    setTimeout(function() { loadReport('week'); }, 500);
     startAutoRefresh();
   }
 
   // ========== 退出登录 ==========
   document.getElementById('logoutBtn').addEventListener('click', function() {
+
+  // ========== 全局刷新按钮 ==========
+  document.getElementById('refreshBtn').addEventListener('click', function() {
+    lastRefreshTime = 0;
+    loadAllData();
+    showToast('数据已刷新', 'success');
+  });
+
+  // ========== 退出登录 ==========
     apiRequest('POST', 'logout', {}).then(function() {
       var saved = loadLoginInfo();
       token = null;
