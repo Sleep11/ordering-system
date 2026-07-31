@@ -1131,7 +1131,9 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .dish-item-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 28px minmax(160px, 260px) 88px 130px 32px;
+  justify-content: space-between;
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
@@ -1154,9 +1156,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .dish-item-name {
-  flex: 0 1 180px;
-  min-width: 100px;
-  max-width: 240px;
+  min-width: 0;
+  width: 100%;
   padding: 4px 8px;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -1164,7 +1165,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .dish-item-price {
-  width: 64px;
+  width: 100%;
   padding: 4px 6px;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -1178,11 +1179,11 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-left: auto;
+  margin-left: 0;
 }
 
 .dish-item-weight {
-  width: 56px;
+  width: 52px;
   padding: 4px 6px;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -1201,18 +1202,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   font-weight: 600;
   color: var(--muted);
 }
-.dish-item-name {
-  flex: 0 1 180px;
-  min-width: 100px;
-  max-width: 240px;
-}
-.dish-item-price {
-  width: 56px;
-}
-.dish-item-weight {
-  width: 48px;
-}
 .dish-item-del {
+  width: 32px;
   flex-shrink: 0;
 }
 
@@ -1276,11 +1267,22 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   }
   
   .dish-item-row {
+    display: flex;
     flex-wrap: wrap;
   }
   .dish-item-name {
     flex: 1 1 100%;
     max-width: none;
+  }
+  .dish-price-wrap {
+    flex: 0 0 84px;
+  }
+  .dish-item-weight-label {
+    flex: 1 1 120px;
+    margin-left: 0;
+  }
+  .dish-item-del {
+    margin-left: auto;
   }
 }
 .report-tabs {
@@ -1528,33 +1530,55 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .order-card .order-money {
-  display: grid;
-  grid-template-columns: repeat(2, auto);
-  gap: 2px 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
   font-size: 12px;
   color: var(--text-secondary);
   margin-left: auto;
   min-width: 150px;
-  text-align: right;
 }
 
 .order-card .money-item {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 52px;
 }
 
 .order-card .money-label {
+  font-size: 11px;
   color: var(--muted);
 }
 
-.money-discount {
+.order-card .money-value {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.money-receivable .money-value {
+  color: var(--danger);
+}
+
+.money-actual .money-value {
   color: var(--success);
 }
 
-.money-refund {
+.money-discount .money-value {
+  color: var(--text);
+}
+
+.money-discount.has-value .money-value {
+  color: var(--success);
+}
+
+.money-refund .money-value {
   color: var(--danger);
+}
+
+.money-refund.refunded .money-value {
+  color: var(--success);
 }
 
 .order-card .order-actions {
@@ -1582,6 +1606,11 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 .order-paid-badge.unpaid {
   background: var(--danger-soft);
   color: var(--danger);
+}
+
+.order-paid-badge.refunded {
+  background: var(--warning-soft);
+  color: var(--warning);
 }
 
 .paid-dot::before {
@@ -1844,7 +1873,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   .order-card .order-money {
     width: 100%;
     margin-left: 0;
-    grid-template-columns: repeat(2, 1fr);
+    justify-content: flex-end;
   }
 
   .date-header {
@@ -1986,6 +2015,37 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   align-items: center;
   justify-content: center;
   font-size: 12px;
+}
+
+.toast-msg {
+  flex: 1;
+}
+
+.toast-code {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--bg-subtle);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: Consolas, monospace;
+}
+
+.toast-copy-code {
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text-secondary);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.toast-copy-code:hover {
+  background: var(--bg-subtle);
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 .toast-success { border-left-color: var(--success); }

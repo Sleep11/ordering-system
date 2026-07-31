@@ -137,6 +137,8 @@ Retinbox KV 数据库 (database: ordering)
   "discount": 0,
   "actual": 0,
   "refund": 0,
+  "refunded": false,
+  "refundedAt": null,
   "paid": false,
   "paidAt": null,
   "createdAt": "2026-07-31T04:00:00.000Z",
@@ -167,10 +169,16 @@ Retinbox KV 数据库 (database: ordering)
 | `price` | 餐品原价 |
 | `receivable` | 应收金额，默认等于原价，自取减免开启后减 1 |
 | `discount` | 减免金额，午餐/晚餐自取减免为 1，否则为 0 |
-| `actual` | 实收金额，已付款时等于应收，未付款时为 0 |
+| `actual` | 实收金额，已付款时保持原价，不随减免变化；未付款时为 0 |
 | `refund` | 退款金额，已付款且享受减免时为 1，否则为 0 |
+| `refunded` | 是否已退款，管理员点击退款后变为 true |
+| `refundedAt` | 退款时间 |
 
 部署新版本后，后端会在首次请求时自动执行一次订单字段迁移；之后管理员切换当日午餐/晚餐自取减免时，也会自动重算当天对应餐别的订单金额。
+
+### 提示码
+
+所有右下角 Toast 都会生成唯一提示码，格式为 `MSG-XXXX`，并带“复制”按钮。用户反馈问题时复制提示码即可快速定位对应提示来源。
 
 ---
 
@@ -216,6 +224,7 @@ Retinbox KV 数据库 (database: ordering)
 | `delete-order` | 删除单条 | 登录* | orderId |
 | `delete-orders-by-date` | 删除当天全部 | admin | date |
 | `update-payment` | 切换付款 | admin | orderId, paid |
+| `refund-order` | 标记订单已退款 | admin | orderId |
 
 *普通用户仅可操作自己，系统锁定时受限；†仅 admin 可为他人订餐
 
@@ -270,7 +279,7 @@ var lunchSelfPick = false;     // 午餐自取减免
 var dinnerSelfPick = false;    // 晚餐自取减免
 var blindLunchPrice = 11;      // 午餐盲盒价
 var blindDinnerPrice = 12;     // 晚餐盲盒价
-var APP_VERSION = '2.3.9';     // 版本号
+var APP_VERSION = '2.4.0';     // 版本号
 ```
 
 ### 数据流
@@ -631,6 +640,16 @@ Ctrl+Shift+R 强制刷新。如果仍不行，检查顶部栏版本号是否最�
 ---
 
 ## 变更记录
+
+### v2.4.0 (2026-07-31)
+- 新增：订单退款按钮和“已退款”状态
+- 新增：订单应收/实收/减免/退款横向展示，金额放大加粗并按语义着色
+- 优化：实收金额固定为原价，切换自取减免时不再改变实收
+- 新增：所有 Toast 唯一提示码 `MSG-XXXX` 和复制按钮
+- 优化：菜品管理名称/价格/权重三栏布局，限制名称输入框宽度
+- 修复：保存菜品接口继续兼容 JSON 字符串表单提交
+- 更新：订单自动迁移升级到 `order_schema_v2`，补充 `refunded` 字段
+- 更新：版本号升级到 `v2.4.0`
 
 ### v2.3.9 (2026-07-31)
 - 新增：订单金额字段 `receivable`、`discount`、`actual`、`refund`

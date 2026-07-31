@@ -27,7 +27,7 @@
   var MIN_REFRESH_INTERVAL = 3000;
   var USERS_REFRESH_INTERVAL = 30000;
   var ORDERS_REFRESH_INTERVAL = 8000;
-  var APP_VERSION = '2.3.9';
+  var APP_VERSION = '2.4.0';
   var COLLAPSED_KEY = 'ordering_collapsed_sections';
   var DEFAULT_SAFE_USERS = [
     { id: 'admin_chenli', name: '陈立昊', role: 'admin' },
@@ -56,6 +56,15 @@
       .replace(/'/g, '&#39;');
   }
 
+  function getMessageCode(message, type) {
+    var input = (type || 'info') + ':' + String(message || '');
+    var hash = 0;
+    for (var i = 0; i < input.length; i++) {
+      hash = ((hash << 5) - hash + input.charCodeAt(i)) >>> 0;
+    }
+    return 'MSG-' + (hash % 1679616).toString(36).toUpperCase().padStart(4, '0');
+  }
+
   // ========== Toast 通知系统 ==========
   function showToast(message, type) {
     type = type || 'info';
@@ -73,7 +82,10 @@
 
     var toast = document.createElement('div');
     toast.className = 'toast toast-' + type;
-    toast.innerHTML = '<span class="toast-icon"></span><span class="toast-msg">' + escapeHtml(message) + '</span>';
+    var code = getMessageCode(message, type);
+    toast.innerHTML = '<span class="toast-icon"></span><span class="toast-msg">' + escapeHtml(message) + '</span>' +
+      '<span class="toast-code">' + code + '</span>' +
+      '<button type="button" class="toast-copy-code" title="复制提示码">复制</button>';
     container.appendChild(toast);
     // 入场动画
     requestAnimationFrame(function() { toast.classList.add('toast-enter'); });
@@ -86,7 +98,14 @@
       setTimeout(function() { if (toast.parentNode) toast.remove(); }, 600);
     }, duration);
     // 点击立即关闭
-    toast.addEventListener('click', function() {
+    toast.addEventListener('click', function(e) {
+      var copyBtn = toast.querySelector('.toast-copy-code');
+      if (copyBtn && e.target === copyBtn) {
+        copyToClipboard(code);
+        copyBtn.textContent = '已复制';
+        setTimeout(function() { copyBtn.textContent = '复制'; }, 1500);
+        return;
+      }
       toast.classList.add('toast-exit');
       setTimeout(function() { if (toast.parentNode) toast.remove(); }, 300);
     });
@@ -157,12 +176,16 @@
 
   function getOrderActual(order) {
     if (typeof order.actual === 'number') return order.actual;
-    return order.paid ? getOrderReceivable(order) : 0;
+    return order.paid ? (parseFloat(order.price) || 0) : 0;
   }
 
   function getOrderRefund(order) {
     if (typeof order.refund === 'number') return order.refund;
     return order.paid ? getOrderDiscount(order) : 0;
+  }
+
+  function getOrderRefunded(order) {
+    return !!order.refunded;
   }
 
   function getMealTypeName(type) {
@@ -921,7 +944,7 @@
         if (o.paid) {
           paidCount++;
           paidAmount += getOrderActual(o);
-          refundAmount += getOrderRefund(o);
+          if (getOrderRefunded(o)) refundAmount += getOrderRefund(o);
         }
       }
     }
@@ -1222,14 +1245,17 @@
       var discount = getOrderDiscount(o);
       var actual = getOrderActual(o);
       var refund = getOrderRefund(o);
+      var refunded = getOrderRefunded(o);
       html += '<span class="order-money">';
-      html += '<span class="money-item"><span class="money-label">应收</span>' + formatPrice(receivable) + '</span>';
-      html += '<span class="money-item' + (discount > 0 ? ' money-discount' : '') + '"><span class="money-label">减免</span>' + (discount > 0 ? '-' : '') + formatPrice(discount) + '</span>';
-      html += '<span class="money-item"><span class="money-label">实收</span>' + formatPrice(actual) + '</span>';
-      html += '<span class="money-item' + (refund > 0 ? ' money-refund' : '') + '"><span class="money-label">退款</span>' + formatPrice(refund) + '</span>';
+      html += '<span class="money-item money-receivable"><span class="money-label">应收</span><span class="money-value">' + formatPrice(receivable) + '</span></span>';
+      html += '<span class="money-item money-discount' + (discount > 0 ? ' has-value' : '') + '"><span class="money-label">减免</span><span class="money-value">' + (discount > 0 ? '-' : '') + formatPrice(discount) + '</span></span>';
+      html += '<span class="money-item money-actual"><span class="money-label">实收</span><span class="money-value">' + formatPrice(actual) + '</span></span>';
+      html += '<span class="money-item money-refund' + (refunded ? ' refunded' : '') + '"><span class="money-label">退款</span><span class="money-value">' + formatPrice(refund) + '</span></span>';
       html += '</span>';
 
-      if (o.paid) {
+      if (refunded) {
+        html += '<span class="order-paid-badge refunded">已退款</span>';
+      } else if (o.paid) {
         html += '<span class="order-paid-badge paid paid-dot">已付</span>';
       } else {
         html += '<span class="order-paid-badge unpaid">未付</span>';
@@ -1259,6 +1285,15 @@
           html += '<button class="btn btn-small btn-secondary" data-action="cancel-pay" data-order-id="' + escapeHtml(o.id) + '">否</button>';
           html += '</span>';
         }
+      }
+
+      if (currentUser.role === 'admin' && o.paid && !refunded && discount > 0) {
+        html += '<button class="btn btn-ghost btn-small" data-action="toggle-refund" data-order-id="' + escapeHtml(o.id) + '">退款</button>';
+        html += '<span class="confirm-action hidden" id="confirm-refund-' + escapeHtml(o.id) + '">';
+        html += ' 确认退款？';
+        html += '<button class="btn btn-small btn-primary" data-action="confirm-refund" data-order-id="' + escapeHtml(o.id) + '">是</button>';
+        html += '<button class="btn btn-small btn-secondary" data-action="cancel-refund" data-order-id="' + escapeHtml(o.id) + '">否</button>';
+        html += '</span>';
       }
 
       // 删除按钮
@@ -1351,6 +1386,45 @@
       var badge = confirmEl.previousElementSibling;
       confirmEl.classList.add('hidden');
       badge.classList.remove('hidden');
+      return;
+    }
+
+    if (target.getAttribute('data-action') === 'toggle-refund') {
+      var orderId = target.getAttribute('data-order-id');
+      var confirmEl = document.getElementById('confirm-refund-' + orderId);
+      target.classList.add('hidden');
+      confirmEl.classList.remove('hidden');
+      return;
+    }
+
+    if (target.getAttribute('data-action') === 'confirm-refund') {
+      var orderId = target.getAttribute('data-order-id');
+      var confirmEl = document.getElementById('confirm-refund-' + orderId);
+      var actionBtn = confirmEl.previousElementSibling;
+      confirmEl.classList.add('hidden');
+      if (actionBtn) actionBtn.classList.remove('hidden');
+      withConfirmFeedback(target, function() {
+        return apiRequest('POST', 'refund-order', { orderId: orderId })
+          .then(function(result) {
+            if (result.success) {
+              lastRefreshTime = 0;
+              loadAllData();
+              return true;
+            } else {
+              showToast(result.message || '退款失败', 'error');
+              return false;
+            }
+          });
+      }, '订单已退款');
+      return;
+    }
+
+    if (target.getAttribute('data-action') === 'cancel-refund') {
+      var orderId = target.getAttribute('data-order-id');
+      var confirmEl = document.getElementById('confirm-refund-' + orderId);
+      var btn = confirmEl.previousElementSibling;
+      confirmEl.classList.add('hidden');
+      btn.classList.remove('hidden');
       return;
     }
 

@@ -54,7 +54,7 @@ async function readOrderKeysInBatches(keys) {
   return orders;
 }
 
-var ORDER_SCHEMA_VERSION = 'order_schema_v1';
+var ORDER_SCHEMA_VERSION = 'order_schema_v2';
 
 function getOrderDiscountValue(order, lunchSelfPick, dinnerSelfPick) {
   if (typeof order.discount === 'number') return order.discount;
@@ -69,8 +69,9 @@ function normalizeOrderMoney(order, lunchSelfPick, dinnerSelfPick) {
   var discount = getOrderDiscountValue(order, lunchSelfPick, dinnerSelfPick);
   if (typeof order.discount !== 'number') order.discount = discount;
   if (typeof order.receivable !== 'number') order.receivable = Math.max(0, price - order.discount);
-  if (typeof order.actual !== 'number') order.actual = order.paid ? order.receivable : 0;
+  order.actual = order.paid ? price : 0;
   if (typeof order.refund !== 'number') order.refund = order.paid ? order.discount : 0;
+  if (typeof order.refunded !== 'boolean') order.refunded = false;
   return order;
 }
 
@@ -116,7 +117,7 @@ async function applySelfPickDiscountToToday(key, enabled) {
     var price = parseFloat(order.price) || 0;
     order.discount = enabled ? 1 : 0;
     order.receivable = Math.max(0, price - order.discount);
-    order.actual = order.paid ? order.receivable : 0;
+    if (typeof order.actual !== 'number') order.actual = order.paid ? price : 0;
     order.refund = order.paid ? order.discount : 0;
     order.updatedAt = new Date().toISOString();
     kv.setJSON(orderKey, order);
@@ -259,6 +260,8 @@ async function handleRequest() {
     return handleDeleteOrdersByDate();
   } else if (action === 'update-payment' && method === 'POST') {
     return handleUpdatePayment();
+  } else if (action === 'refund-order' && method === 'POST') {
+    return handleRefundOrder();
   } else if (action === 'get-settings') {
     return handleGetSettings();
   } else if (action === 'update-settings' && method === 'POST') {
@@ -847,7 +850,7 @@ async function handleCreateOrder() {
     if (date === getChinaDate() && mealType === 'lunch' && lunchSelfPickSetting) discount = 1;
     if (date === getChinaDate() && mealType === 'dinner' && dinnerSelfPickSetting) discount = 1;
     var receivable = Math.max(0, price - discount);
-    var actual = existingOrder && existingOrder.paid ? receivable : 0;
+    var actual = existingOrder && existingOrder.paid ? price : 0;
     var refund = existingOrder && existingOrder.paid ? discount : 0;
     
     var now = new Date().toISOString();
@@ -864,6 +867,8 @@ async function handleCreateOrder() {
       discount: discount,
       actual: actual,
       refund: refund,
+      refunded: existingOrder ? !!existingOrder.refunded : false,
+      refundedAt: existingOrder ? (existingOrder.refundedAt || null) : null,
       paid: existingOrder ? existingOrder.paid : false,
       paidAt: existingOrder ? existingOrder.paidAt : null,
       createdAt: existingOrder ? existingOrder.createdAt : now,
@@ -984,8 +989,12 @@ async function handleUpdatePayment() {
     
     order.paid = paid;
     order.paidAt = paid ? new Date().toISOString() : null;
-    order.actual = paid ? order.receivable : 0;
+    order.actual = paid ? (parseFloat(order.price) || 0) : 0;
     order.refund = paid ? order.discount : 0;
+    if (!paid) {
+      order.refunded = false;
+      order.refundedAt = null;
+    }
     order.updatedAt = new Date().toISOString();
     
     kv.setJSON(orderId, order);
@@ -993,6 +1002,46 @@ async function handleUpdatePayment() {
     return sendJSON({ success: true, data: { order: order }, message: '付款状态更新成功' });
   } catch (e) {
     return sendJSON({ success: false, message: '更新付款状态失败: ' + e.message }, 500);
+  }
+}
+
+// 订单退款（管理员）
+async function handleRefundOrder() {
+  try {
+    var currentUser = await auth.getCurrentUser();
+    if (!currentUser) {
+      return sendJSON({ success: false, message: '未登录' }, 401);
+    }
+    if (currentUser.role !== 'admin') {
+      return sendJSON({ success: false, message: '无权限退款' }, 403);
+    }
+
+    var body = req.body || {};
+    var orderId = body.orderId;
+    if (!orderId) {
+      return sendJSON({ success: false, message: '订单 ID 不能为空' }, 400);
+    }
+
+    var order = await kv.getJSON(orderId);
+    if (!order) {
+      return sendJSON({ success: false, message: '订单不存在' }, 404);
+    }
+    if (!order.paid) {
+      return sendJSON({ success: false, message: '未付款订单不能退款' }, 400);
+    }
+    if (order.refunded) {
+      return sendJSON({ success: false, message: '订单已退款' }, 400);
+    }
+
+    order.refunded = true;
+    order.refundedAt = new Date().toISOString();
+    order.refund = order.discount || 0;
+    order.updatedAt = new Date().toISOString();
+    kv.setJSON(orderId, order);
+
+    return sendJSON({ success: true, data: { order: order }, message: '退款成功' });
+  } catch (e) {
+    return sendJSON({ success: false, message: '退款失败: ' + e.message }, 500);
   }
 }
 
