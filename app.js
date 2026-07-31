@@ -560,7 +560,15 @@
     // 加载数据
     loadAllData();
     // 自动加载本周报表
-    setTimeout(function() { loadReport('week'); }, 500);
+    setTimeout(function() {
+      if (currentUser && currentUser.role !== 'admin') return;
+      // 默认最近七天
+      var toD = new Date(new Date().getTime() + 8 * 60 * 60 * 1000);
+      var fromD = new Date(toD.getTime() - 6 * 24 * 60 * 60 * 1000);
+      document.getElementById('reportDateFrom').value = fromD.toISOString().split('T')[0];
+      document.getElementById('reportDateTo').value = toD.toISOString().split('T')[0];
+      updateReportQuery();
+    }, 500);
     startAutoRefresh();
   }
 
@@ -1946,13 +1954,19 @@
     container.innerHTML = html;
   }
 
-  document.getElementById('reportTabWeek').addEventListener('click', function() { loadReport('week'); });
+  document.getElementById('reportTabWeek').addEventListener('click', function() {
+    var toD = new Date(new Date().getTime() + 8 * 60 * 60 * 1000);
+    var fromD = new Date(toD.getTime() - 6 * 24 * 60 * 60 * 1000);
+    document.getElementById('reportDateFrom').value = fromD.toISOString().split('T')[0];
+    document.getElementById('reportDateTo').value = toD.toISOString().split('T')[0];
+    updateReportQuery();
+  });
   document.getElementById('reportTabMonth').addEventListener('click', function() { loadReport('month'); });
 
   // 报表日期导航
   document.getElementById('reportPrev').addEventListener('click', function() {
     var fromEl = document.getElementById('reportDateFrom');
-    if (!fromEl || !fromEl.value) { loadReport('week'); return; }
+    if (!fromEl || !fromEl.value) { document.getElementById('reportTabWeek').click(); return; }
     var d = new Date(fromEl.value + 'T00:00:00+08:00');
     if (currentReportType === 'month') {
       d.setUTCMonth(d.getUTCMonth() - 1);
@@ -1973,7 +1987,7 @@
 
   document.getElementById('reportNext').addEventListener('click', function() {
     var fromEl = document.getElementById('reportDateFrom');
-    if (!fromEl || !fromEl.value) { loadReport('week'); return; }
+    if (!fromEl || !fromEl.value) { document.getElementById('reportTabWeek').click(); return; }
     var d = new Date(fromEl.value + 'T00:00:00+08:00');
     if (currentReportType === 'month') {
       d.setUTCMonth(d.getUTCMonth() + 1);
