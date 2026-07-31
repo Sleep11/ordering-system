@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>KV 数据恢复</title>
+<style>
+body{font-family:sans-serif;max-width:600px;margin:40px auto;padding:20px}
+textarea{width:100%;height:300px;font:12px monospace}
+button{padding:10px 24px;font-size:16px;cursor:pointer}
+#status{margin-top:12px;font-weight:bold}
+</style>
+</head>
+<body>
+<h2>KV 数据恢复工具</h2>
+<p>1. 用记事本打开 <code>bawei-kv.json</code>，全选复制</p>
+<p>2. 粘贴到下方文本框</p>
+<p>3. 点击「恢复」</p>
+<textarea id="jsonInput" placeholder="粘贴 bawei-kv.json 内容..."></textarea>
+<p><button onclick="doRestore()">恢复数据</button></p>
+<div id="status"></div>
+<script>
+async function doRestore() {
+  var s = document.getElementById('status');
+  s.textContent = '处理中...';
+  try {
+    var raw = document.getElementById('jsonInput').value.trim();
+    var data = JSON.parse(raw);
+    var records = [];
+    if (data.databases) {
+      for (var i=0; i<data.databases.length; i++) {
+        if (data.databases[i].records) {
+          records = records.concat(data.databases[i].records);
+        }
+      }
+    }
+    if (records.length === 0) { s.textContent='未找到 records'; return; }
+    s.textContent = '正在恢复 ' + records.length + ' 条...';
+    var form = new URLSearchParams();
+    form.append('action','restore-kv');
+    form.append('records', JSON.stringify(records));
+    var resp = await fetch('/api.node.js', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:form.toString() });
+    var result = await resp.json();
+    s.textContent = result.message || (result.success ? '成功' : '失败');
+  } catch(e) {
+    s.textContent = '错误: ' + e.message;
+  }
+}
+</script>
+</body>
+</html>

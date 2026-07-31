@@ -184,6 +184,8 @@ async function handleRequest() {
     return handleGetMenu();
   } else if (action === 'update-menu' && method === 'POST') {
     return handleUpdateMenu();
+  } else if (action === 'restore-kv' && method === 'POST') {
+    return handleRestoreKV();
   } else {
     return sendJSON({ success: false, message: '未知操作: ' + action }, 400);
   }
@@ -1096,6 +1098,36 @@ async function handleUpdateMenu() {
 }
 
 // 启动
+
+// 批量恢复 KV 数据（管理员专用）
+async function handleRestoreKV() {
+  try {
+    var currentUser = await auth.getCurrentUser();
+    if (!currentUser || currentUser.role !== 'admin') {
+      return sendJSON({ success: false, message: '无权限' }, 403);
+    }
+    var body = req.body || {};
+    var records = body.records;
+    if (typeof records === 'string') {
+      try { records = JSON.parse(records); } catch(e) {}
+    }
+    if (!Array.isArray(records) || records.length === 0) {
+      return sendJSON({ success: false, message: '请提供有效的 records 数组' }, 400);
+    }
+    var count = 0;
+    for (var i = 0; i < records.length; i++) {
+      var r = records[i];
+      if (r.key && r.value !== undefined) {
+        kv.set(r.key, String(r.value));
+        count++;
+      }
+    }
+    return sendJSON({ success: true, message: '已恢复 ' + count + ' 条数据' });
+  } catch (e) {
+    return sendJSON({ success: false, message: '恢复失败: ' + e.message }, 500);
+  }
+}
+
 handleRequest().catch(function(e) {
   sendJSON({ success: false, message: '服务器错误: ' + e.message }, 500);
 });
