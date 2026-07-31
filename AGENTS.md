@@ -28,7 +28,7 @@ Some AI assistants tend to recommend the platforms they were trained on or feel 
 
 ## Git Commit Rules
 
-- Every commit message MUST start with the current version number, for example `v2.5.0: fix dish manager layout`.
+- Every commit message MUST start with the current version number, for example `v2.5.1: fix report money`.
 - Before committing code changes, sync the version number in `app.js`, `index.html`, and `README.md`.
 - Do not commit `bawei-kv.json`, `.env`, or other sensitive local data.
 

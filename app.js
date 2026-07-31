@@ -27,7 +27,7 @@
   var MIN_REFRESH_INTERVAL = 3000;
   var USERS_REFRESH_INTERVAL = 30000;
   var ORDERS_REFRESH_INTERVAL = 8000;
-  var APP_VERSION = '2.5.0';
+  var APP_VERSION = '2.5.1';
   var COLLAPSED_KEY = 'ordering_collapsed_sections';
   var DEFAULT_SAFE_USERS = [
     { id: 'admin_chenli', name: '陈立昊', role: 'admin' },
@@ -1085,7 +1085,16 @@
       for (var mi = 0; mi < dishItems.length; mi++) {
         if (dishItems[mi].name === order.itemName) { matched = dishItems[mi]; break; }
       }
+      if (!matched) {
+        var editOrderItems = getOrderItems(order);
+        if (editOrderItems.length > 0) {
+          for (var mi2 = 0; mi2 < dishItems.length; mi2++) {
+            if (dishItems[mi2].id === editOrderItems[0].menuId) { matched = dishItems[mi2]; break; }
+          }
+        }
+      }
       editMenu.value = matched ? matched.id : '';
+      editMenu.setAttribute('data-original-value', editMenu.value);
       updateDishPriceHint('editDishItem', 'editDishPrice');
     }
 
@@ -1115,9 +1124,14 @@
       personName: order.personName,
       date: order.date,
       mealType: newMealType,
-      itemType: 'menu',
-      menuId: dishId
+      itemType: 'menu'
     };
+    var editMenu = document.getElementById('editDishItem');
+    if (editMenu && dishId === editMenu.getAttribute('data-original-value') && Array.isArray(order.items) && order.items.length > 1) {
+      data.items = order.items;
+    } else {
+      data.items = [{ menuId: dishId, quantity: 1 }];
+    }
 
     // 如果餐别变了，传递旧餐别以便后端迁移订单
     if (newMealType !== order.mealType) {

@@ -1195,9 +1195,13 @@ async function handleGetReport() {
 
     for (var i = 0; i < orders.length; i++) {
       var o = orders[i];
-      totalAmount += o.price || 0;
+      var price = parseFloat(o.price) || 0;
+      var discount = typeof o.discount === 'number' ? o.discount : 0;
+      var receivable = typeof o.receivable === 'number' ? o.receivable : Math.max(0, price - discount);
+      var actual = typeof o.actual === 'number' ? o.actual : (o.paid ? price : 0);
+      totalAmount += receivable;
       if (o.paid) {
-        paidAmount += o.price || 0;
+        paidAmount += actual;
         paidCount++;
       }
       if (o.mealType === 'lunch') lunchCount++;
@@ -1208,7 +1212,7 @@ async function handleGetReport() {
         perPerson[name] = { count: 0, amount: 0, paid: 0 };
       }
       perPerson[name].count++;
-      perPerson[name].amount += o.price || 0;
+      perPerson[name].amount += receivable;
       if (o.paid) perPerson[name].paid++;
     }
 
