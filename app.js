@@ -9,8 +9,8 @@
   var allOrders = [];
   var expandedDates = {};
   var settings = { orderLocked: false, lunchLocked: false, dinnerLocked: false };
-  var menuItems = [];
-  var menuLoaded = false;
+  var dishItems = [];
+  var dishLoaded = false;
   var blindLunchPrice = 11;
   var blindDinnerPrice = 12;
   var refreshTimer = null;
@@ -259,42 +259,42 @@
   var settingsLoaded = false;
 
   // ========== 菜单管理 ==========
-  function loadMenu() {
+  function loadDishes() {
     return apiRequest('POST', 'get-menu', {}).then(function(result) {
       if (result.success && result.data && result.data.menu) {
-        menuItems = result.data.menu;
-        menuLoaded = true;
-        populateMenuDropdowns();
+        dishItems = result.data.menu;
+        dishLoaded = true;
+        populateDishDropdowns();
         if (currentUser && currentUser.role === 'admin' && allUsers.length > 0) {
           populateBatchOrderTable();
         }
         if (currentUser && currentUser.role === 'admin') {
-          renderMenuManager();
+          renderDishManager();
         }
       }
     }).catch(function() {});
   }
 
-  function populateMenuDropdowns() {
-    var singleSelect = document.getElementById('singleMenuItem');
-    var editSelect = document.getElementById('editMenuItem');
+  function populateDishDropdowns() {
+    var singleSelect = document.getElementById('singledishItem');
+    var editSelect = document.getElementById('editdishItem');
     var html = '<option value="">-- 请选择餐品 --</option>';
-    for (var i = 0; i < menuItems.length; i++) {
-      var m = menuItems[i];
+    for (var i = 0; i < dishItems.length; i++) {
+      var m = dishItems[i];
       html += '<option value="' + escapeHtml(m.id) + '" data-price="' + m.price + '">' + escapeHtml(m.name) + ' ¥' + m.price + '</option>';
     }
     if (singleSelect) singleSelect.innerHTML = html;
     if (editSelect) editSelect.innerHTML = html;
   }
 
-  function getMenuById(id) {
-    for (var i = 0; i < menuItems.length; i++) {
-      if (menuItems[i].id === id) return menuItems[i];
+  function getDishById(id) {
+    for (var i = 0; i < dishItems.length; i++) {
+      if (dishItems[i].id === id) return dishItems[i];
     }
     return null;
   }
 
-  function updateMenuPriceHint(selectId, hintId) {
+  function updateDishPriceHint(selectId, hintId) {
     var sel = document.getElementById(selectId);
     var hint = document.getElementById(hintId);
     if (!sel || !hint) return;
@@ -498,17 +498,17 @@
     // 管理员显示侧边栏和用户管理区
     if (currentUser.role === 'admin') {
       document.getElementById('sidebar').classList.remove('hidden');
-      document.getElementById('section-menu').classList.remove('hidden');
+      document.getElementById('section-dish').classList.remove('hidden');
       document.getElementById('section-admin').classList.remove('hidden');
       document.getElementById('userSelectGroup').style.display = '';
-      document.getElementById('singleMenuGroup').style.display = 'none';
+      document.getElementById('singleDishGroup').style.display = 'none';
       document.getElementById('singleNoteGroup').style.display = 'none';
     } else {
       document.getElementById('sidebar').classList.add('hidden');
-      document.getElementById('section-menu').classList.add('hidden');
+      document.getElementById('section-dish').classList.add('hidden');
       document.getElementById('section-admin').classList.add('hidden');
       document.getElementById('userSelectGroup').style.display = 'none';
-      document.getElementById('singleMenuGroup').style.display = '';
+      document.getElementById('singleDishGroup').style.display = '';
       document.getElementById('singleNoteGroup').style.display = '';
     }
 
@@ -613,8 +613,8 @@
     if (!settingsLoaded) {
       loadSettings();
     }
-    if (!menuLoaded) {
-      loadMenu();
+    if (!dishLoaded) {
+      loadDishes();
     }
 
     // 加载订单（不阻塞其他数据加载）
@@ -724,13 +724,8 @@
       var checkbox = row.querySelector('.user-checkbox');
       if (!checkbox) continue;
       var userId = checkbox.value;
-      var menuSelect = row.querySelector('.menu-select');
-      var noteInput = row.querySelector('.note-input');
-      drafts[userId] = {
-        checked: checkbox.checked,
-        menuId: menuSelect ? menuSelect.value : '',
-        note: noteInput ? noteInput.value : ''
-      };
+      var menuSelect = row.querySelector('.dish-select');
+      drafts[userId] = { checked: checkbox.checked, dishId: menuSelect ? menuSelect.value : '' };
     }
     return drafts;
   }
@@ -742,8 +737,8 @@
 
     // 构建菜单选项
     var menuOpts = '<option value="">-- 选择 --</option>';
-    for (var k = 0; k < menuItems.length; k++) {
-      var mi = menuItems[k];
+    for (var k = 0; k < dishItems.length; k++) {
+      var mi = dishItems[k];
       menuOpts += '<option value="' + escapeHtml(mi.id) + '" data-price="' + mi.price + '">' + escapeHtml(mi.name) + ' ¥' + mi.price + '</option>';
     }
 
@@ -751,16 +746,15 @@
     for (var i = 0; i < allUsers.length; i++) {
       var user = allUsers[i];
       var draft = drafts[user.id];
-      var menuId = draft ? draft.menuId : '';
+      var dishId = draft ? draft.dishId : '';
       var checked = draft ? draft.checked : false;
-      var note = draft ? (draft.note || '') : '';
       var row = document.createElement('div');
       row.className = 'batch-order-row' + (checked ? ' is-selected' : '');
       row.dataset.userId = user.id;
       // 注入 selected 属性
       var optsHtml = menuOpts;
-      if (menuId) {
-        optsHtml = optsHtml.replace('value="' + escapeHtml(menuId) + '"', 'value="' + escapeHtml(menuId) + '" selected');
+      if (dishId) {
+        optsHtml = optsHtml.replace('value="' + escapeHtml(dishId) + '"', 'value="' + escapeHtml(dishId) + '" selected');
       }
       row.innerHTML =
         '<span class="col-checkbox">' +
@@ -768,7 +762,7 @@
         '</span>' +
         '<span class="col-name">' + escapeHtml(user.name) + '</span>' +
         '<span class="col-menu">' +
-          '<select class="menu-select">' + optsHtml + '</select>' +
+          '<select class="dish-select">' + optsHtml + '</select>' +
         '</span>' +
         '<span class="col-note">' +
           '<input type="text" class="note-input" placeholder="备注" value="' + escapeHtml(note) + '">' +
@@ -873,14 +867,14 @@
     document.getElementById('editMealType').value = order.mealType;
 
     // 尝试匹配菜单项
-    var editMenu = document.getElementById('editMenuItem');
-    if (editMenu && menuItems.length > 0) {
+    var editMenu = document.getElementById('editdishItem');
+    if (editMenu && dishItems.length > 0) {
       var matched = null;
-      for (var mi = 0; mi < menuItems.length; mi++) {
-        if (menuItems[mi].name === order.itemName) { matched = menuItems[mi]; break; }
+      for (var mi = 0; mi < dishItems.length; mi++) {
+        if (dishItems[mi].name === order.itemName) { matched = dishItems[mi]; break; }
       }
       editMenu.value = matched ? matched.id : '';
-      updateMenuPriceHint('editMenuItem', 'editMenuPrice');
+      updateDishPriceHint('editdishItem', 'editDishPrice');
     }
     var editNote = document.getElementById('editNote');
     if (editNote) editNote.value = order.note || '';
@@ -900,19 +894,19 @@
 
     var order = editingOrder;
     var newMealType = document.getElementById('editMealType').value;
-    var menuId = document.getElementById('editMenuItem').value;
+    var dishId = document.getElementById('editdishItem').value;
     var errorEl = document.getElementById('editOrderError');
     errorEl.textContent = '';
 
-    if (!menuId) { errorEl.textContent = '请选择餐品'; return; }
+    if (!dishId) { errorEl.textContent = '请选择餐品'; return; }
 
     var data = {
       userId: order.userId,
       personName: order.personName,
       date: order.date,
       mealType: newMealType,
-      itemType: 'menu',
-      menuId: menuId
+      itemType: 'dish',
+      dishId: dishId
     };
 
     // 如果餐别变了，传递旧餐别以便后端迁移订单
@@ -1437,17 +1431,16 @@
         }
         var row = checkedRows[completedCount];
         var userId = row.querySelector('.user-checkbox').value;
-        var menuSelect = row.querySelector('.menu-select');
-        var menuId = menuSelect ? menuSelect.value : '';
-        if (!menuId) { failedCount++; completedCount++; submitNext(); return; }
+        var menuSelect = row.querySelector('.dish-select');
+        var dishId = menuSelect ? menuSelect.value : '';
+        if (!dishId) { failedCount++; completedCount++; submitNext(); return; }
         var data = {
           userId: userId,
           date: date,
           mealType: mealType,
-          itemType: 'menu',
-          menuId: menuId
+          itemType: 'dish',
+          dishId: dishId
         };
-        var noteInput = row.querySelector('.note-input');
         if (noteInput && noteInput.value.trim()) {
           data.note = noteInput.value.trim();
         }
@@ -1470,18 +1463,15 @@
       submitNext();
     } else {
       // 普通用户单人提交
-      var menuId = document.getElementById('singleMenuItem').value;
-      if (!menuId) { showToast('请选择餐品', 'info'); return; }
+      var dishId = document.getElementById('singledishItem').value;
+      if (!dishId) { showToast('请选择餐品', 'info'); return; }
       var data = {
         date: date,
         mealType: mealType,
-        itemType: 'menu',
-        menuId: menuId
+        itemType: 'dish',
+        dishId: dishId
       };
-      var noteVal = document.getElementById('singleNote').value.trim();
-      if (noteVal) {
-        data.note = noteVal;
-      }
+      
 
       // 禁用提交按钮，防止重复提交
       submitBtn.disabled = true;
@@ -1492,9 +1482,8 @@
         submitBtn.textContent = '提交订单';
         if (result.success) {
           loadAllData();
-          document.getElementById('singleMenuItem').value = '';
-          document.getElementById('singleNote').value = '';
-          document.getElementById('singleMenuPrice').textContent = '';
+          document.getElementById('singledishItem').value = '';
+          document.getElementById('singleDishPrice').textContent = '';
         } else {
           showToast(result.message || '提交失败', 'error');
         }
@@ -1724,7 +1713,7 @@
   function updateActiveSidebarLink() {
     if (window.innerWidth <= 768) return;
     var sections = ['section-order', 'section-stats', 'section-orders', 'section-admin'];
-    sections.push('section-menu');
+    sections.push('section-dish');
     sections.push('section-report');
     var scrollPos = window.scrollY + 100;
 
@@ -2004,12 +1993,12 @@
   }
 
   // ========== 菜单管理渲染 ==========
-  function renderMenuManager() {
-    var container = document.getElementById('menuList');
+  function renderDishManager() {
+    var container = document.getElementById('dishList');
     if (!container) return;
     var html = '';
-    for (var i = 0; i < menuItems.length; i++) {
-      var m = menuItems[i];
+    for (var i = 0; i < dishItems.length; i++) {
+      var m = dishItems[i];
       html += '<div class="menu-item-row" data-id="' + escapeHtml(m.id) + '">';
       html += '<span class="menu-item-drag">☰</span>';
       html += '<input type="text" class="menu-item-name" value="' + escapeHtml(m.name) + '" placeholder="名称">';
@@ -2021,15 +2010,15 @@
     container.innerHTML = html;
   }
 
-  document.getElementById('addMenuItemBtn').addEventListener('click', function() {
+  document.getElementById('addDishItemBtn').addEventListener('click', function() {
     var newId = 'm' + Date.now();
-    var newWeight = menuItems.length > 0 ? Math.max.apply(null, menuItems.map(function(m) { return m.weight || 0; })) + 1 : 100;
-    menuItems.push({ id: newId, name: '新餐品', price: 15, weight: newWeight });
-    renderMenuManager();
-    populateMenuDropdowns();
+    var newWeight = dishItems.length > 0 ? Math.max.apply(null, dishItems.map(function(m) { return m.weight || 0; })) + 1 : 100;
+    dishItems.push({ id: newId, name: '新餐品', price: 15, weight: newWeight });
+    renderDishManager();
+    populateDishDropdowns();
   });
 
-  document.getElementById('saveMenuBtn').addEventListener('click', function() {
+  document.getElementById('saveDishBtn').addEventListener('click', function() {
     var rows = document.querySelectorAll('.menu-item-row');
     var updated = [];
     for (var i = 0; i < rows.length; i++) {
@@ -2051,11 +2040,11 @@
     updated.sort(function(a, b) { return b.weight - a.weight; });
     apiRequest('POST', 'update-menu', { menu: updated }).then(function(result) {
       if (result.success) {
-        menuItems = updated;
-        menuItems.sort(function(a, b) { return b.weight - a.weight; });
-        populateMenuDropdowns();
+        dishItems = updated;
+        dishItems.sort(function(a, b) { return b.weight - a.weight; });
+        populateDishDropdowns();
         populateBatchOrderTable();
-        showToast('菜单已保存', 'success');
+        showToast('菜品已保存', 'success');
       } else {
         showToast(result.message || '保存失败', 'error');
       }
@@ -2064,13 +2053,13 @@
     });
   });
 
-  document.getElementById('menuList').addEventListener('click', function(e) {
+  document.getElementById('dishList').addEventListener('click', function(e) {
     var target = e.target;
     if (target.classList.contains('menu-item-del')) {
       var id = target.getAttribute('data-id');
-      menuItems = menuItems.filter(function(m) { return m.id !== id; });
-      renderMenuManager();
-      populateMenuDropdowns();
+      dishItems = dishItems.filter(function(m) { return m.id !== id; });
+      renderDishManager();
+      populateDishDropdowns();
     }
   });
 

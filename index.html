@@ -215,23 +215,19 @@
                     <span class="col-checkbox"><input type="checkbox" id="selectAllUsers" title="全选/取消全选"></span>
                     <span class="col-name">姓名</span>
                     <span class="col-menu">餐品</span>
-                    <span class="col-note">备注</span>
+                    <span class="col-price-hdr">价格</span>
                   </div>
                   <div id="batchOrderRows"></div>
                 </div>
               </div>
 
               <!-- 普通用户：单人点餐 -->
-              <div class="form-group" id="singleMenuGroup">
+              <div class="form-group" id="singleDishGroup">
                 <label for="singleMenuItem">餐品</label>
-                <select id="singleMenuItem" required>
+                <select id="singleDishItem" required>
                   <option value="">-- 请选择餐品 --</option>
                 </select>
-                <p class="menu-price-hint" id="singleMenuPrice"></p>
-              </div>
-              <div class="form-group" id="singleNoteGroup">
-                <label for="singleNote">备注（口味等）</label>
-                <input type="text" id="singleNote" placeholder="可选备注">
+                <div class="menu-price-inline" id="singleDishPrice">选择餐品后显示价格</div>
               </div>
               <div id="batchSubmitStatus" class="batch-submit-status hidden"></div>
               <button type="submit" class="btn btn-primary">提交订单</button>
@@ -332,15 +328,15 @@
           </div>
         </section>
 
-        <!-- 管理员：菜单管理 -->
-        <section id="section-menu" class="panel collapsible hidden">
-          <div class="panel__header collapsible-toggle" data-section="menu">
+        <!-- 管理员：菜品管理 -->
+        <section id="section-dish" class="panel collapsible hidden">
+          <div class="panel__header collapsible-toggle" data-section="dish">
             <h2 class="panel__title">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="3"/>
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
               </svg>
-              菜单管理
+              菜品管理
             </h2>
             <svg class="collapse-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="6 9 12 15 18 9"/>
@@ -348,11 +344,11 @@
           </div>
           <div class="panel__body collapsible-body">
             <div class="menu-toolbar">
-              <button class="btn btn-ghost btn-small" id="addMenuItemBtn">+ 添加餐品</button>
-              <button class="btn btn-ghost btn-small" id="saveMenuBtn">💾 保存菜单</button>
+              <button class="btn btn-ghost btn-small" id="addDishItemBtn">+ 添加餐品</button>
+              <button class="btn btn-ghost btn-small" id="saveDishBtn">💾 保存菜单</button>
               <span class="menu-hint">拖拽权重滑块调整顺序，权重高排前面</span>
             </div>
-            <div id="menuList" class="menu-list"></div>
+            <div id="dishList" class="menu-list"></div>
           </div>
         </section>
 
@@ -456,10 +452,10 @@
         </div>
         <div class="form-group">
           <label for="editMenuItem">餐品</label>
-          <select id="editMenuItem" required>
+          <select id="editDishItem" required>
             <option value="">-- 请选择餐品 --</option>
           </select>
-          <p class="menu-price-hint" id="editMenuPrice"></p>
+          <p class="menu-price-hint" id="editDishPrice"></p>
         </div>
         <div class="form-group">
           <label for="editNote">备注（口味等）</label>
