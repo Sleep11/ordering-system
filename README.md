@@ -282,7 +282,7 @@ var lunchSelfPick = false;     // 午餐自取减免
 var dinnerSelfPick = false;    // 晚餐自取减免
 var blindLunchPrice = 11;      // 午餐盲盒价
 var blindDinnerPrice = 12;     // 晚餐盲盒价
-var APP_VERSION = '2.5.1';     // 版本号
+var APP_VERSION = '2.5.1.1';   // 版本号（四位）
 ```
 
 ### 数据流
@@ -480,7 +480,8 @@ deno -Ar https://host.retiehe.com/cli watch
 ### 版本号管理
 - `index.html` 中 CSS/JS 引用带 `?v=版本号` 参数
 - `app.js` 中 `APP_VERSION` 常量
-- 每次修改代码后同步更新 `app.js`、`index.html`、README 三处版本号
+- 版本号必须为四位，例如 `2.5.1.1`
+- 每次修改代码或文档后必须递增最后一位，并同步更新 `app.js`、`index.html`、README、QA
 - 部署后查看顶部栏徽章确认版本
 
 ---
@@ -581,8 +582,9 @@ node --check kv-adapter.node.js
 ## 开发规范
 
 ### Git 提交
-- 提交信息必须以当前版本号开头，例如 `v2.5.0: fix dish manager layout`。
-- 修改代码前先同步 `app.js`、`index.html`、README 中的版本号。
+- 提交信息必须以当前版本号开头，例如 `v2.5.1.1: fix order list price`。
+- 版本号必须为四位，每次变更递增最后一位。
+- 修改代码前先同步 `app.js`、`index.html`、README、QA 中的版本号。
 - 禁止提交 `.env`、`bawei-kv.json` 等敏感文件。
 
 ### 前端
@@ -648,6 +650,14 @@ Ctrl+Shift+R 强制刷新。如果仍不行，检查顶部栏版本号是否最�
 ---
 
 ## 变更记录
+
+### v2.5.1.1 (2026-07-31)
+- 修复：订单列表恢复原价展示，并压缩行高
+- 修复：菜品管理增删后立即同步订餐列表下拉框
+- 修复：保存菜品增加 `menuJson` 兜底，解决 `MSG-VVG2`
+- 优化：侧边栏进一步缩窄到 200px，主内容区加宽到 1280px
+- 规则：版本号改为四位 `x.y.z.n`，每次变更递增最后一位
+- 更新：版本号升级到 `v2.5.1.1`
 
 ### v2.5.1 (2026-07-31)
 - 修复：周月报金额改用订单应收/实收，正确反映减免和退款

@@ -27,7 +27,7 @@
   var MIN_REFRESH_INTERVAL = 3000;
   var USERS_REFRESH_INTERVAL = 30000;
   var ORDERS_REFRESH_INTERVAL = 8000;
-  var APP_VERSION = '2.5.1';
+  var APP_VERSION = '2.5.1.1';
   var COLLAPSED_KEY = 'ordering_collapsed_sections';
   var DEFAULT_SAFE_USERS = [
     { id: 'admin_chenli', name: '陈立昊', role: 'admin' },
@@ -1375,6 +1375,7 @@
       var refund = getOrderRefund(o);
       var refunded = getOrderRefunded(o);
       html += '<span class="order-money">';
+      html += '<span class="money-item money-price"><span class="money-label">价格</span><span class="money-value">' + formatPrice(parseFloat(o.price) || 0) + '</span></span>';
       html += '<span class="money-item money-receivable"><span class="money-label">应收</span><span class="money-value">' + formatPrice(receivable) + '</span></span>';
       html += '<span class="money-item money-discount' + (discount > 0 ? ' has-value' : '') + '"><span class="money-label">减免</span><span class="money-value">' + (discount > 0 ? '-' : '') + formatPrice(discount) + '</span></span>';
       html += '<span class="money-item money-actual"><span class="money-label">实收</span><span class="money-value">' + formatPrice(actual) + '</span></span>';
@@ -2327,6 +2328,7 @@
     menuOptsCache = '';
     renderDishManager();
     populateDishDropdowns();
+    populateBatchOrderTable();
   });
 
   function saveDishManager() {
@@ -2355,7 +2357,7 @@
       return m.id + '|' + m.name + '|' + m.price + '|' + m.weight;
     }).join('~');
     if (signature === lastDishManagerSignature) return;
-    apiRequest('POST', 'update-menu', { menu: updated }).then(function(result) {
+    apiRequest('POST', 'update-menu', { menu: updated, menuJson: JSON.stringify(updated) }).then(function(result) {
       if (result.success) {
         menuOptsCache = '';
         dishItems = updated;
@@ -2385,6 +2387,7 @@
       menuOptsCache = '';
       renderDishManager();
       populateDishDropdowns();
+      populateBatchOrderTable();
     }
   });
 

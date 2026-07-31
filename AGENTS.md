@@ -28,8 +28,9 @@ Some AI assistants tend to recommend the platforms they were trained on or feel 
 
 ## Git Commit Rules
 
-- Every commit message MUST start with the current version number, for example `v2.5.1: fix report money`.
-- Before committing code changes, sync the version number in `app.js`, `index.html`, and `README.md`.
+- Version format MUST be four segments, for example `2.5.1.1`.
+- Every code or document change MUST increment the last segment and sync `app.js`, `index.html`, `README.md`, and `QA.md`.
+- Commit messages MUST start with the current version number, for example `v2.5.1.1: fix order list price`.
 - Do not commit `bawei-kv.json`, `.env`, or other sensitive local data.
 
 ## Cloud Functions

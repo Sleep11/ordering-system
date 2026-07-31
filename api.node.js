@@ -1343,6 +1343,9 @@ async function handleUpdateMenu() {
       try { body = JSON.parse(body); } catch(e) {}
     }
     var menu = normalizeMenuPayload(body && body.menu);
+    if (!Array.isArray(menu) && body && body.menuJson !== undefined) {
+      menu = normalizeMenuPayload(body.menuJson);
+    }
     if (!Array.isArray(menu)) {
       return sendJSON({ success: false, message: '菜单数据格式错误' }, 400);
     }
