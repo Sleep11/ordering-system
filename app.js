@@ -17,6 +17,7 @@
   var focusRefreshBound = false;
   var isBatchSubmitting = false;
   var lastRefreshTime = 0;
+  var lastOrdersHash = '';
   var lastUsersSignature = '';
   var API_BASE = '/api.node.js';
   var MIN_REFRESH_INTERVAL = 3000;
@@ -38,6 +39,7 @@
 
   // ========== 工具函数 ==========
   var MAX_TOASTS = 3;
+  var menuOptsCache = '';
 
   function escapeHtml(str) {
     if (!str) return '';
@@ -276,6 +278,7 @@
   }
 
   function populateDishDropdowns() {
+    menuOptsCache = '';
     var singleSelect = document.getElementById('singleDishItem');
     var editSelect = document.getElementById('editDishItem');
     var html = '<option value="">-- 请选择餐品 --</option>';
@@ -622,7 +625,11 @@
     // 加载订单（不阻塞其他数据加载）
     apiRequest('POST', 'get-orders', {}).then(function(ordersResult) {
       if (ordersResult.success) {
-        allOrders = ordersResult.data.orders || [];
+        var newOrders = ordersResult.data.orders || [];
+        var newHash = JSON.stringify(newOrders);
+        if (newHash === lastOrdersHash) return;
+        lastOrdersHash = newHash;
+        allOrders = newOrders;
       } else if (ordersResult._status === 401) {
         handleUnauthorized();
         return;
@@ -738,10 +745,12 @@
     var fragment = document.createDocumentFragment();
 
     // 构建菜单选项
-    var menuOpts = '<option value="">-- 选择 --</option>';
-    for (var k = 0; k < dishItems.length; k++) {
-      var mi = dishItems[k];
-      menuOpts += '<option value="' + escapeHtml(mi.id) + '" data-price="' + mi.price + '">' + escapeHtml(mi.name) + ' ¥' + mi.price + '</option>';
+    if (!menuOptsCache) {
+      menuOptsCache = '<option value="">-- 选择 --</option>';
+      for (var k = 0; k < dishItems.length; k++) {
+        var mi = dishItems[k];
+        menuOptsCache += '<option value="' + escapeHtml(mi.id) + '" data-price="' + mi.price + '">' + escapeHtml(mi.name) + ' ¥' + mi.price + '</option>';
+      }
     }
 
     container.innerHTML = '';
@@ -754,7 +763,7 @@
       row.className = 'batch-order-row' + (checked ? ' is-selected' : '');
       row.dataset.userId = user.id;
       // 注入 selected 属性
-      var optsHtml = menuOpts;
+      var optsHtml = menuOptsCache;
       if (dishId) {
         optsHtml = optsHtml.replace('value="' + escapeHtml(dishId) + '"', 'value="' + escapeHtml(dishId) + '" selected');
       }
@@ -2017,6 +2026,7 @@
     var newId = 'm' + Date.now();
     var newWeight = dishItems.length > 0 ? Math.max.apply(null, dishItems.map(function(m) { return m.weight || 0; })) + 1 : 100;
     dishItems.push({ id: newId, name: '新餐品', price: 15, weight: newWeight });
+    menuOptsCache = '';
     renderDishManager();
     populateDishDropdowns();
   });
@@ -2043,6 +2053,7 @@
     updated.sort(function(a, b) { return b.weight - a.weight; });
     apiRequest('POST', 'update-menu', { menu: updated }).then(function(result) {
       if (result.success) {
+        menuOptsCache = '';
         dishItems = updated;
         dishItems.sort(function(a, b) { return b.weight - a.weight; });
         populateDishDropdowns();
@@ -2061,6 +2072,7 @@
     if (target.classList.contains('menu-item-del')) {
       var id = target.getAttribute('data-id');
       dishItems = dishItems.filter(function(m) { return m.id !== id; });
+      menuOptsCache = '';
       renderDishManager();
       populateDishDropdowns();
     }
