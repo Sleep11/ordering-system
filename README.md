@@ -471,6 +471,102 @@ var ORDERS_REFRESH_INTERVAL = 8000; // 订单刷新间隔 8秒
 - ✅ 餐别自动选择（上午午餐/下午晚餐）
 - ✅ 编辑订单支持修改餐别
 
+
+## 自动部署
+
+### GitHub Actions 配置
+
+已配置 GitHub Actions，每次 push 到 main 分支自动部署到 Retinbox。
+
+**前置条件：**
+1. GitHub Secrets 中已设置 `RTH_API_KEY`（Retinbox API 密钥）
+2. `rth-host.json` 中 `site` 字段为 Retinbox 站点名（免费域名只填子域名部分）
+3. GitHub Actions 使用 Deno 2.8.0 运行 Retinbox CLI
+
+**部署流程：**
+```
+git push → GitHub Actions 触发 → deno run CLI → 上传文件到 Retinbox
+```
+
+**注意事项：**
+- 不要修改 `.github/workflows/deploy.yml` 中的 Deno 版本（固定 2.8.0）
+- RTH_API_KEY 设置时避免多余换行符，否则 CLI 验证失败
+- 免费域名 site 只写子域名（如 `bawei`），不要写完整域名
+
+### 本地部署
+
+```bash
+# 初始化（首次）
+deno -Ar https://host.retiehe.com/cli init
+
+# 部署
+npm run deploy
+
+# 云函数热更新（文件保存自动部署）
+deno -Ar https://host.retiehe.com/cli watch
+```
+
+---
+
+## 开发约束与规范
+
+### 前端
+- **纯原生 JS**，无框架依赖。所有逻辑在 `app.js` 中
+- **DOM 操作**：避免直接 `innerHTML` 重建全量 DOM，优先局部更新
+- **状态管理**：全局变量集中声明在文件顶部，命名清晰
+- **事件绑定**：优先事件委托（如 `ordersContainer` 的 click 委托）
+- **自动刷新**：8 秒间隔，有哈希对比跳过无变化渲染
+- **确认对话框**：DOM 重建时自动恢复状态，确认后立即隐藏防残留
+- **Toast 通知**：最多 3 个，超出自动移除
+
+### 后端
+- **云函数**：Retinbox Node.js 云函数（`.node.js` 后缀）
+- **数据库**：Retinbox KV 存储，数据库名 `ordering`
+- **认证**：自定义密码哈希（FNV-1a）+ 随机 Salt + 24h 会话
+- **权限**：管理员 / 普通用户两级，API 层校验
+- **API 规范**：POST 请求，`action` 参数路由，JSON 响应
+
+### 数据安全
+- **禁止 Base64**：项目任何位置不得使用 Base64 编码
+- **XSS 防护**：所有用户输入通过 `escapeHtml()` 转义
+- **密码存储**：SHA 哈希 + Salt，不明文存储
+- **会话管理**：Token 加密存储，24h 过期，修改密码立即清除
+
+### 菜品管理
+- 菜品存储在 `settings_menu` KV key 中，JSON 数组格式
+- 每项包含 `id`、`name`、`price`、`weight`
+- 权重越高排序越靠前，通过 `renderDishManager()` 渲染
+- 修改后需点击"保存菜品"，调用 `update-menu` API
+
+### 兼容性
+- 目标浏览器：Chrome/Edge/Safari 最新版
+- 移动端：≤768px 响应式，侧边栏抽屉，表格横向滚动
+- 云函数环境：Retinbox Node.js，无 npm 包支持
+
+---
+
+## 常见问题
+
+### 订单提交失败
+1. 检查菜品下拉框是否有选项（首次使用需等待菜单加载）
+2. 确认已选择菜品（menuId 不为空）
+3. 检查日期是否在允许范围内（±30天）
+
+### 部署失败
+1. 确认 RTH_API_KEY 已正确设置（无多余换行）
+2. 确认 `rth-host.json` 中 site 名称正确
+3. 查看 GitHub Actions 日志定位具体错误
+
+### 数据恢复
+- 用户数据损坏时系统自动重建默认用户（admin_chenli 等）
+- 菜单数据损坏时自动重建默认菜品列表
+- 所有默认密码为 `123456`
+
+### 菜品添加后看不到
+- 确认已点击"保存菜品"按钮
+- 检查菜品管理面板是否已展开（默认折叠）
+- 刷新页面后检查
+
 ### v1.0
 - 基础登录/注册
 - 盲盒/自定义点餐
