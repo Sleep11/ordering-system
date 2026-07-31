@@ -111,6 +111,8 @@ function sendJSON(data, statusCode) {
   statusCode = statusCode || 200;
   res.status(statusCode);
   res.set('Content-Type', 'application/json; charset=utf-8');
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.set('Pragma', 'no-cache');
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
