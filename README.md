@@ -282,7 +282,7 @@ var lunchSelfPick = false;     // 午餐自取减免
 var dinnerSelfPick = false;    // 晚餐自取减免
 var blindLunchPrice = 11;      // 午餐盲盒价
 var blindDinnerPrice = 12;     // 晚餐盲盒价
-var APP_VERSION = '2.5.1.6';   // 版本号（四位）
+var APP_VERSION = '2.5.1.7';   // 版本号（四位）
 ```
 
 ### 数据流
@@ -659,7 +659,12 @@ Ctrl+Shift+R 强制刷新。如果仍不行，检查顶部栏版本号是否最�
 
 ## 变更记录
 
+### v2.5.1.7 (2026-07-31)
+- 规则：新增"优化"触发规则，说"优化"时自动优化双端样式、友好提示、性能
+- 文档：AGENTS.md 新增 Optimization Rule 章节
+
 ### v2.5.1.6 (2026-07-31)
+
 - 规则：新增"测试"触发规则，说"测试"时自动深度检查并修复，然后提交部署
 - 文档：AGENTS.md 新增 Deep Test Rule 章节
 

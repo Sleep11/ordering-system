@@ -73,6 +73,37 @@ When the user says "测试", "深度测试", "跑一下测试", or any equivalen
 12. Push to `main` and wait for GitHub Actions deployment to succeed.
 13. Sync `bugfix` to `main` and push `bugfix`.
 
+## Optimization Rule
+
+When the user says "优化", "优化一下", "全面优化", or any equivalent optimization request:
+
+1. **双端样式优化**：
+   - 检查桌面端（>768px）和移动端（≤768px）CSS 媒体查询覆盖是否完整
+   - 确保所有交互元素（按钮、输入框、下拉框）在移动端有足够的触控区域（≥44px）
+   - 检查是否有元素溢出或重叠，尤其关注 320px 极小屏
+   - 统一间距和字号体系，确保视觉层次清晰
+   - 消除冗余 CSS 规则和未使用的样式类
+
+2. **友好提示优化**：
+   - 检查所有 Toast 消息文案是否简洁易懂
+   - 为空状态（无订单、无菜品、无用户）添加引导性提示
+   - 为关键操作（删除、修改、保存）添加明确的确认或反馈
+   - 检查错误消息是否指明了具体原因和解决建议
+   - 为加载中状态添加视觉反馈（按钮禁用的 loading 动效、骨架屏等）
+
+3. **性能优化**：
+   - 检查 `renderOrders` 和 `renderDishManager` 是否过度重建 DOM，能 diff 则 diff
+   - 检查 API 请求是否有不必要的重复调用（去重、缓存、防抖）
+   - 检查批量数据操作是否可合并为单次请求
+   - 检查 `allOrders` / `allUsers` 数组是否在大数据量时有性能瓶颈
+   - CSS：移除未使用的样式、合并重复选择器、减少重绘
+   - JS：减少闭包创建、避免在循环中频繁访问 DOM
+
+4. 修复发现的所有问题。
+5. 递增版本号最后一位。
+6. 同步版本号到 `app.js`、`index.html`、`README.md`、`QA.md`。
+7. 提交并推送 main，同步 bugfix，等待部署。
+
 ## Cloud Functions
 
 Cloud functions allow you to run backend code (PHP or Node.js) to handle dynamic requests, access databases, read/write files, and call external APIs.
