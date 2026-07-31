@@ -1752,6 +1752,32 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
     font-size: 11px;
     gap: 8px;
   }
+
+  .topbar-inner {
+    padding: 0 10px;
+  }
+
+  .topbar-title {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .topbar-right {
+    gap: 4px;
+  }
+
+  .topbar-right .btn-ghost,
+  .topbar-right .btn-refresh {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  .role-badge {
+    padding: 1px 6px;
+    font-size: 10px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1761,6 +1787,20 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
   .login-container {
     padding: 28px 20px 24px;
+  }
+
+  .topbar-title {
+    font-size: 12px;
+    max-width: 80px;
+  }
+
+  .topbar-right .role-badge {
+    display: none;
+  }
+
+  .topbar-right .btn-ghost {
+    padding: 3px 6px;
+    font-size: 10px;
   }
 }
 
