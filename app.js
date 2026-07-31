@@ -27,7 +27,7 @@
   var MIN_REFRESH_INTERVAL = 3000;
   var USERS_REFRESH_INTERVAL = 30000;
   var ORDERS_REFRESH_INTERVAL = 8000;
-  var APP_VERSION = '2.5.1.4';
+  var APP_VERSION = '2.5.1.5';
   var COLLAPSED_KEY = 'ordering_collapsed_sections';
   var DEFAULT_SAFE_USERS = [
     { id: 'admin_chenli', name: '陈立昊', role: 'admin' },
@@ -336,8 +336,12 @@
           renderDishManager();
           lastDishManagerSignature = getDishManagerSignature();
         }
+      } else if (result.message) {
+        console.error('loadDishes failed:', result.message);
       }
-    }).catch(function() {});
+    }).catch(function(e) {
+      console.error('loadDishes error:', e);
+    });
   }
 
   function populateDishDropdowns() {
@@ -1077,6 +1081,9 @@
     document.getElementById('editPersonName').textContent = order.personName;
     document.getElementById('editOrderDate').textContent = formatDate(order.date) + ' ' + getDayOfWeek(order.date);
     document.getElementById('editMealType').value = order.mealType;
+
+    // 确保编辑下拉框有最新菜品数据
+    if (dishItems.length > 0) { populateDishDropdowns(); }
 
     // 尝试匹配菜单项
     var editMenu = document.getElementById('editDishItem');
@@ -2331,6 +2338,7 @@
     populateBatchOrderTable();
   });
 
+  var dishSaveBusy = false;
   function saveDishManager() {
     var rows = document.querySelectorAll('.dish-item-row');
     if (rows.length === 0) { showToast('无菜品数据，请先添加', 'error'); return; }
@@ -2357,26 +2365,41 @@
       return m.id + '|' + m.name + '|' + m.price + '|' + m.weight;
     }).join('~');
     if (signature === lastDishManagerSignature) return;
+    if (dishSaveBusy) return;
+    dishSaveBusy = true;
     apiRequest('POST', 'update-menu', { menu: updated, menuJson: JSON.stringify(updated) }).then(function(result) {
       if (result.success) {
         menuOptsCache = '';
-        dishItems = updated;
-        dishItems.sort(function(a, b) { return b.weight - a.weight; });
         lastDishManagerSignature = signature;
-        populateDishDropdowns();
-        populateBatchOrderTable();
+        // 从服务器重新加载完整菜单（含 note 字段），而不是直接赋值 DOM 数据
+        loadDishes().then(function() {
+          dishSaveBusy = false;
+        }).catch(function() {
+          // loadDishes 失败也至少更新前端
+          dishItems = updated;
+          dishItems.sort(function(a, b) { return b.weight - a.weight; });
+          populateDishDropdowns();
+          populateBatchOrderTable();
+          dishSaveBusy = false;
+        });
         showToast('菜品已保存', 'success');
       } else {
+        dishSaveBusy = false;
         showToast(result.message || '保存失败', 'error');
       }
     }).catch(function() {
+      dishSaveBusy = false;
       showToast('网络错误', 'error');
     });
   }
 
   document.getElementById('saveDishBtn').addEventListener('click', saveDishManager);
+  var dishSaveTimer = null;
   document.getElementById('dishList').addEventListener('change', function(e) {
-    if (e.target && e.target.classList.contains('dish-item-price')) saveDishManager();
+    if (e.target && e.target.classList.contains('dish-item-price')) {
+      if (dishSaveTimer) clearTimeout(dishSaveTimer);
+      dishSaveTimer = setTimeout(function() { saveDishManager(); }, 600);
+    }
   });
 
   document.getElementById('dishList').addEventListener('click', function(e) {

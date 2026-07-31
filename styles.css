@@ -43,8 +43,8 @@
 
   /* 尺寸 */
   --topbar-height: 56px;
-  --sidebar-width: 200px;
-  --content-max: 1280px;
+  --sidebar-width: 176px;
+  --content-max: 100%;
 }
 
 /* ============ 基础 ============ */
@@ -503,7 +503,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .topbar-inner {
-  max-width: 1520px;
+  max-width: 100%;
   margin: 0 auto;
   height: 100%;
   display: flex;
@@ -573,7 +573,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 /* ============ 布局 ============ */
 .layout {
   display: flex;
-  max-width: 1520px;
+  max-width: 100%;
   margin: 0 auto;
   padding-top: var(--topbar-height);
   min-height: 100vh;
@@ -582,7 +582,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 .sidebar {
   width: var(--sidebar-width);
   flex-shrink: 0;
-  padding: 16px 10px;
+  padding: 12px 6px;
   position: sticky;
   top: var(--topbar-height);
   height: calc(100vh - var(--topbar-height));
@@ -600,7 +600,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
   font-size: 14px;
@@ -632,8 +632,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   color: var(--muted-light);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  padding: 16px 12px 6px;
-  margin-top: 8px;
+  padding: 12px 10px 4px;
+  margin-top: 4px;
   border-top: 1px solid var(--line-light);
 }
 
@@ -642,7 +642,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 12px;
+  padding: 8px 10px;
   border-radius: var(--radius-sm);
 }
 
@@ -748,7 +748,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 .content {
   flex: 1;
   min-width: 0;
-  padding: 24px 28px;
+  padding: 20px 24px;
   max-width: var(--content-max);
 }
 
@@ -763,7 +763,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .panel:hover {
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
 }
 
 .panel__header {
@@ -1363,6 +1363,43 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   .dish-item-del {
     margin-left: auto;
   }
+  .date-header {
+    padding: 8px 12px;
+  }
+  .date-title {
+    font-size: 13px;
+  }
+  .order-card .order-paid-badge {
+    font-size: 10px;
+    padding: 1px 6px;
+  }
+  .order-card .order-actions .btn {
+    padding: 3px 6px;
+    font-size: 11px;
+  }
+
+
+  .dish-item-row {
+    grid-template-columns: 20px 1fr auto;
+    gap: 4px;
+    padding: 4px 6px;
+  }
+  .dish-item-name {
+    font-size: 12px !important;
+  }
+  .dish-price-wrap {
+    flex: 0 0 70px;
+  }
+  .dish-item-weight-label {
+    margin-left: 4px;
+  }
+  .dish-item-weight {
+    width: 40px;
+  }
+  .dish-item-del {
+    margin-left: 2px;
+  }
+
 }
 .report-tabs {
   display: flex;
@@ -1548,10 +1585,12 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .order-card {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 12px;
+  display: grid;
+  grid-template-columns: 56px 1fr auto auto auto;
+  align-items: start;
+  gap: 2px 10px;
+  padding: 5px 10px;
+  min-height: 34px;
   border-bottom: 1px solid var(--line-light);
   transition: background 0.1s;
 }
@@ -1561,19 +1600,23 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .order-card:hover {
-  background: var(--bg-subtle);
+  background: #f0f4ff;
+}
+.order-card:nth-child(even) {
+  background: #fafbfd;
 }
 
 .order-card .order-user {
   font-weight: 600;
-  font-size: 13px;
-  min-width: 60px;
+  font-size: 12px;
+  min-width: 50px;
   color: var(--text);
 }
 
 .order-card .order-detail {
   flex: 1;
-  font-size: 13px;
+  min-width: 0;
+  font-size: 12px;
   color: var(--text-secondary);
 }
 
@@ -1613,6 +1656,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 14px;
+  gap: 6px 10px;
   font-size: 12px;
   color: var(--text-secondary);
   margin-left: auto;
@@ -1625,6 +1669,10 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   align-items: flex-end;
   min-width: 42px;
 }
+.money-price .money-value {
+  color: #1e40af;
+}
+
 
 .order-card .money-label {
   font-size: 11px;
@@ -1632,7 +1680,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .order-card .money-value {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 800;
 }
 
@@ -1649,7 +1697,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .money-discount.has-value .money-value {
-  color: var(--success);
+  color: #0891b2;
 }
 
 .money-refund .money-value {
@@ -1657,7 +1705,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .money-refund.refunded .money-value {
-  color: var(--success);
+  color: var(--danger);
 }
 
 .order-card .order-actions {
@@ -1871,7 +1919,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
     top: var(--topbar-height);
     left: 0;
     bottom: 0;
-    width: 260px;
+    width: 220px;
     background: var(--panel);
     z-index: 90;
     border-right: 1px solid var(--line-light);
@@ -1889,7 +1937,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   }
 
   .content {
-    padding: 12px;
+    padding: 10px 8px;
   }
 
   .menu-list {
@@ -1946,20 +1994,38 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   }
 
   .order-card {
-    flex-wrap: wrap;
-    gap: 6px;
+    grid-template-columns: 40px 1fr;
+    gap: 2px 6px;
+    padding: 4px 8px;
+  }
+
+  .order-card .order-user {
+    font-size: 11px;
+    min-width: 35px;
+  }
+
+  .order-card .order-detail {
+    font-size: 11px;
   }
 
   .order-card .order-actions {
-    width: 100%;
+    grid-column: 1 / -1;
     justify-content: flex-end;
   }
 
   .order-card .order-money {
-    width: 100%;
+    grid-column: 1 / -1;
     margin-left: 0;
-    justify-content: flex-end;
-    gap: 8px 18px;
+    justify-content: space-around;
+    gap: 4px 6px;
+    padding-top: 2px;
+  }
+
+  .order-card .order-money .money-item {
+    min-width: 32px;
+  }
+  .order-card .order-money .money-value {
+    font-size: 11px;
   }
 
   .date-header {
@@ -1973,7 +2039,12 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   }
 
   .topbar-inner {
-    padding: 0 10px;
+    padding: 0 10px
+
+  .layout {
+    padding-left: 4px;
+    padding-right: 4px;
+  };
   }
 
   
