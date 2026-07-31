@@ -880,7 +880,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
 .batch-order-header {
   display: grid;
-  grid-template-columns: 36px 1fr 80px 1fr 90px;
+  grid-template-columns: 36px 1fr 2fr 64px;
   gap: 0;
   background: var(--bg-subtle);
   border-bottom: 1px solid var(--line-light);
@@ -900,7 +900,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
 .batch-order-row {
   display: grid;
-  grid-template-columns: 36px 1fr 80px 1fr 90px;
+  grid-template-columns: 36px 1fr 2fr 64px;
   gap: 0;
   border-bottom: 1px solid var(--line-light);
   transition: background 0.1s;
@@ -1724,7 +1724,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
   .batch-order-header,
   .batch-order-row {
-    grid-template-columns: 28px 1fr 70px 1fr 80px;
+    grid-template-columns: 28px 1fr 2fr 52px;
     font-size: 12px;
   }
 

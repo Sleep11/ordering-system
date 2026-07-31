@@ -276,7 +276,7 @@
   }
 
   function populateDishDropdowns() {
-    var singleSelect = document.getElementById('singledishItem');
+    var singleSelect = document.getElementById('singleDishItem');
     var editSelect = document.getElementById('editDishItem');
     var html = '<option value="">-- 请选择餐品 --</option>';
     for (var i = 0; i < dishItems.length; i++) {
@@ -888,8 +888,6 @@
       editMenu.value = matched ? matched.id : '';
       updateDishPriceHint('editDishItem', 'editDishPrice');
     }
-    var editNote = document.getElementById('editNote');
-    if (editNote) editNote.value = order.note || '';
 
     document.getElementById('editOrderError').textContent = '';
     document.getElementById('editOrderModal').classList.remove('hidden');
@@ -917,18 +915,13 @@
       personName: order.personName,
       date: order.date,
       mealType: newMealType,
-      itemType: 'dish',
+      itemType: 'menu',
       menuId: dishId
     };
 
     // 如果餐别变了，传递旧餐别以便后端迁移订单
     if (newMealType !== order.mealType) {
       data.oldMealType = order.mealType;
-    }
-
-    var noteVal = document.getElementById('editNote').value.trim();
-    if (noteVal) {
-      data.note = noteVal;
     }
 
     apiRequest('POST', 'create-order', data).then(function(result) {
@@ -1450,12 +1443,10 @@
           userId: userId,
           date: date,
           mealType: mealType,
-          itemType: 'dish',
+          itemType: 'menu',
           menuId: dishId
         };
-        if (noteInput && noteInput.value.trim()) {
-          data.note = noteInput.value.trim();
-        }
+        
         apiRequest('POST', 'create-order', data).then(function(result) {
           completedCount++;
           if (result && result.success) {
@@ -1475,12 +1466,12 @@
       submitNext();
     } else {
       // 普通用户单人提交
-      var dishId = document.getElementById('singledishItem').value;
+      var dishId = document.getElementById('singleDishItem').value;
       if (!dishId) { showToast('请选择餐品', 'info'); return; }
       var data = {
         date: date,
         mealType: mealType,
-        itemType: 'dish',
+        itemType: 'menu',
         menuId: dishId
       };
       
@@ -1494,7 +1485,7 @@
         submitBtn.textContent = '提交订单';
         if (result.success) {
           loadAllData();
-          document.getElementById('singledishItem').value = '';
+          document.getElementById('singleDishItem').value = '';
           document.getElementById('singleDishPrice').textContent = '';
         } else {
           showToast(result.message || '提交失败', 'error');
@@ -2073,6 +2064,14 @@
       renderDishManager();
       populateDishDropdowns();
     }
+  });
+
+  // ========== 菜品选择价格回显 ==========
+  document.getElementById('singleDishItem').addEventListener('change', function() {
+    updateDishPriceHint('singleDishItem', 'singleDishPrice');
+  });
+  document.getElementById('editDishItem').addEventListener('change', function() {
+    updateDishPriceHint('editDishItem', 'editDishPrice');
   });
 
   // ========== 启动 ==========
