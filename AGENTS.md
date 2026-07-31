@@ -46,6 +46,33 @@ When the user says "去下个对话", "下一个对话", "去一下个对话", o
 6. Sync `bugfix` to `main` and push `bugfix`.
 7. Provide a clear starting question for the next conversation.
 
+## Deep Test Rule
+
+When the user says "测试", "深度测试", "跑一下测试", or any equivalent request to run tests:
+
+1. Run `node --check` on `app.js`, `api.node.js`, `auth.node.js`, and `kv-adapter.node.js` to verify JS syntax.
+2. Check CSS for obvious structural issues (unclosed braces, duplicate rules).
+3. Inspect `app.js` for common JS mistakes:
+   - Functions called before definition in the same scope
+   - Variables used before assignment
+   - `arguments.callee` in strict mode
+   - Missing or mismatched closing braces / parentheses
+4. Check `api.node.js` for:
+   - Undefined function references
+   - Route handler completeness
+   - Database key consistency between read and write paths
+5. Inspect `index.html` for:
+   - Element id references matching `app.js` usages
+   - Valid HTML structure (no unclosed tags)
+6. Verify version numbers are consistent across `app.js`, `index.html`, `README.md`, and `QA.md`.
+7. If any issues are found, fix them immediately.
+8. If no issues are found, report "深度测试通过".
+9. Increment the last digit of the four-part version.
+10. Sync the version in `app.js`, `index.html`, `README.md`, and `QA.md`.
+11. Commit with a message starting with the version number.
+12. Push to `main` and wait for GitHub Actions deployment to succeed.
+13. Sync `bugfix` to `main` and push `bugfix`.
+
 ## Cloud Functions
 
 Cloud functions allow you to run backend code (PHP or Node.js) to handle dynamic requests, access databases, read/write files, and call external APIs.
