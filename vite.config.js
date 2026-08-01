@@ -9,13 +9,13 @@ export default defineConfig({
     closeBundle() {
       const dist = resolve(__dirname, 'dist')
       if (!existsSync(dist)) mkdirSync(dist, { recursive: true })
-      const copyTo = (src) => {
+      const cp = (src) => {
         const s = resolve(__dirname, src)
         const d = resolve(dist, basename(src))
         if (existsSync(s)) copyFileSync(s, d)
       }
-      copyTo('api.node.js'); copyTo('auth.node.js'); copyTo('kv-adapter.node.js')
-      copyTo('public/restore.html'); copyTo('public/hash_test.php')
+      cp('api.node.js'); cp('auth.node.js'); cp('kv-adapter.node.js')
+      cp('public/restore.html')
     }
   }],
   resolve: { alias: { '@': resolve(__dirname, 'src') } },
