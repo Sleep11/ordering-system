@@ -1,6 +1,6 @@
 import { useAuthStore } from '@/stores/auth'
 
-const API_BASE = '/api.php'
+const API_BASE = '/api.node.js'
 
 export async function apiRequest(action, data = {}, timeoutMs = 10000) {
   const auth = useAuthStore()
