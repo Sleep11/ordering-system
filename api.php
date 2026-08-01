@@ -53,16 +53,16 @@ function getUsers() {
     $u = kvjson('users');
     if(!is_array($u) || empty($u)) {
         $d = [
-            ['id'=>'admin_chenli', 'name'=>'陈立昊', 'role'=>'admin', 'ph'=>'', 'ps'=>''],
-            ['id'=>'admin_wangyux', 'name'=>'王宇翔', 'role'=>'admin', 'ph'=>'', 'ps'=>''],
-            ['id'=>'user_wanglig', 'name'=>'王里庚', 'role'=>'user', 'ph'=>'', 'ps'=>''],
-            ['id'=>'user_wangchen', 'name'=>'王晨强', 'role'=>'user', 'ph'=>'', 'ps'=>''],
-            ['id'=>'user_kangzi', 'name'=>'康子阔', 'role'=>'user', 'ph'=>'', 'ps'=>''],
-            ['id'=>'user_liuyan', 'name'=>'刘彦宏', 'role'=>'user', 'ph'=>'', 'ps'=>''],
-            ['id'=>'user_weijia', 'name'=>'卫佳旺', 'role'=>'user', 'ph'=>'', 'ps'=>''],
-            ['id'=>'user_zhangxi', 'name'=>'张晓旭', 'role'=>'user', 'ph'=>'', 'ps'=>''],
-            ['id'=>'user_hanzhi', 'name'=>'韩志芳', 'role'=>'user', 'ph'=>'', 'ps'=>''],
-            ['id'=>'user_huchan', 'name'=>'胡昌雨', 'role'=>'user', 'ph'=>'', 'ps'=>''],
+            ['id'=>'admin_chenli', 'name'=>'陈立昊', 'role'=>'admin', 'passwordHash'=>'', 'passwordSalt'=>''],
+            ['id'=>'admin_wangyux', 'name'=>'王宇翔', 'role'=>'admin', 'passwordHash'=>'', 'passwordSalt'=>''],
+            ['id'=>'user_wanglig', 'name'=>'王里庚', 'role'=>'user', 'passwordHash'=>'', 'passwordSalt'=>''],
+            ['id'=>'user_wangchen', 'name'=>'王晨强', 'role'=>'user', 'passwordHash'=>'', 'passwordSalt'=>''],
+            ['id'=>'user_kangzi', 'name'=>'康子阔', 'role'=>'user', 'passwordHash'=>'', 'passwordSalt'=>''],
+            ['id'=>'user_liuyan', 'name'=>'刘彦宏', 'role'=>'user', 'passwordHash'=>'', 'passwordSalt'=>''],
+            ['id'=>'user_weijia', 'name'=>'卫佳旺', 'role'=>'user', 'passwordHash'=>'', 'passwordSalt'=>''],
+            ['id'=>'user_zhangxi', 'name'=>'张晓旭', 'role'=>'user', 'passwordHash'=>'', 'passwordSalt'=>''],
+            ['id'=>'user_hanzhi', 'name'=>'韩志芳', 'role'=>'user', 'passwordHash'=>'', 'passwordSalt'=>''],
+            ['id'=>'user_huchan', 'name'=>'胡昌雨', 'role'=>'user', 'passwordHash'=>'', 'passwordSalt'=>''],
         ];
         foreach($d as &$x) { $s = mkSalt(); $x['passwordSalt'] = $s; $x['passwordHash'] = hashPw('123456', $s); }
         kvsetj('users', $d); return $d;
@@ -123,7 +123,7 @@ elseif($a === 'create-user') {
     if($rl !== 'admin' && $rl !== 'user') $rl = 'user';
     $us = getUsers(); foreach($us as $x) if($x['name'] === $un) err('用户名已存在', 400);
     $s = mkSalt(); $pf = ($rl === 'admin' ? 'admin_' : 'user_');
-    $us[] = ['id'=>$pf.substr(md5($un.time()), 0, 8), 'name'=>$un, 'role'=>$rl, 'ps'=>$s, 'ph'=>hashPw('123456', $s)];
+    $us[] = ['id'=>$pf.substr(md5($un.time()), 0, 8), 'name'=>$un, 'role'=>$rl, 'passwordSalt'=>$s, 'passwordHash'=>hashPw('123456', $s)];
     kvsetj('users', $us); ok(null, '用户创建成功');
 }
 elseif($a === 'delete-user') {
