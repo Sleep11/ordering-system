@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import { resolve } from 'path'
+import { resolve, basename } from 'path'
 import { copyFileSync, existsSync, mkdirSync } from 'fs'
 
 export default defineConfig({
@@ -9,9 +9,13 @@ export default defineConfig({
     closeBundle() {
       const dist = resolve(__dirname, 'dist')
       if (!existsSync(dist)) mkdirSync(dist, { recursive: true })
-      const copy = (f) => { const s = resolve(__dirname, f); if (existsSync(s)) copyFileSync(s, resolve(dist, f)) }
-      copy('api.node.js'); copy('auth.node.js'); copy('kv-adapter.node.js')
-      copy('public/restore.html'); copy('public/hash_test.php')
+      const copyTo = (src) => {
+        const s = resolve(__dirname, src)
+        const d = resolve(dist, basename(src))
+        if (existsSync(s)) copyFileSync(s, d)
+      }
+      copyTo('api.node.js'); copyTo('auth.node.js'); copyTo('kv-adapter.node.js')
+      copyTo('public/restore.html'); copyTo('public/hash_test.php')
     }
   }],
   resolve: { alias: { '@': resolve(__dirname, 'src') } },
