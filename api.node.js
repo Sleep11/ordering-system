@@ -317,6 +317,8 @@ async function handleRequest() {
     return handleUpdateMenu();
   } else if (action === 'clear-all-orders' && method === 'POST') {
     return handleClearAllOrders();
+  } else if (action === 'reset-users-init' && method === 'POST') {
+    return handleResetUsersInit();
   } else if (action === 'restore-kv' && method === 'POST') {
     return handleRestoreKV();
   } else {
@@ -1424,6 +1426,20 @@ async function handleClearAllOrders() {
     return sendJSON({ success: true, message: '已清除 ' + deleted + ' 条订单', data: { count: deleted } });
   } catch (e) {
     return sendJSON({ success: false, message: '清除订单失败: ' + e.message }, 500);
+  }
+}
+
+// 临时：重置用户数据（解决 PHP 迁移导致的数据兼容问题）
+async function handleResetUsersInit() {
+  try {
+    kv.deleteKey('users');
+    var users = await readUsersWithRetry(3);
+    if (!users || users.length === 0) {
+      // initDefaultUsers will be called on next request
+    }
+    return sendJSON({ success: true, message: '用户数据已清除，下次请求将自动重建默认用户' });
+  } catch (e) {
+    return sendJSON({ success: false, message: '重置失败: ' + e.message }, 500);
   }
 }
 
