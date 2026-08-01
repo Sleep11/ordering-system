@@ -64,7 +64,7 @@ function getUsers() {
             ['id'=>'user_hanzhi', 'name'=>'韩志芳', 'role'=>'user', 'ph'=>'', 'ps'=>''],
             ['id'=>'user_huchan', 'name'=>'胡昌雨', 'role'=>'user', 'ph'=>'', 'ps'=>''],
         ];
-        foreach($d as &$x) { $s = mkSalt(); $x['ps'] = $s; $x['ph'] = hashPw('123456', $s); }
+        foreach($d as &$x) { $s = mkSalt(); $x['passwordSalt'] = $s; $x['passwordHash'] = hashPw('123456', $s); }
         kvsetj('users', $d); return $d;
     }
     return $u;
@@ -89,7 +89,7 @@ if($a === 'login') {
     $us = getUsers(); $u = null;
     foreach($us as $x) { if($x['name'] === $un) { $u = $x; break; } }
     if(!$u) err('用户名或密码错误', 401);
-    if(!checkPw($pw, $u['ps'], $u['ph'])) err('用户名或密码错误', 401);
+    if(!checkPw($pw, $u['passwordSalt'], $u['passwordHash'])) err('用户名或密码错误', 401);
     ok(['token'=>mkToken($u['id'], $u['role']), 'user'=>['id'=>$u['id'], 'name'=>$u['name'], 'role'=>$u['role']]]);
 }
 elseif($a === 'logout') { ok(null, '已退出'); }
@@ -105,8 +105,8 @@ elseif($a === 'change-password') {
     $us = getUsers();
     foreach($us as &$x) {
         if($x['id'] === $u['id']) {
-            if(!checkPw($o, $x['ps'], $x['ph'])) err('旧密码错误', 403);
-            $s = mkSalt(); $x['ps'] = $s; $x['ph'] = hashPw($n, $s);
+            if(!checkPw($o, $x['passwordSalt'], $x['passwordHash'])) err('旧密码错误', 403);
+            $s = mkSalt(); $x['passwordSalt'] = $s; $x['passwordHash'] = hashPw($n, $s);
             kvsetj('users', $us); ok(null, '密码修改成功'); return;
         }
     }
@@ -134,7 +134,7 @@ elseif($a === 'delete-user') {
 elseif($a === 'reset-password') {
     needAdmin(); $id = $_POST['userId'] ?? ''; if(!$id) err('用户ID不能为空', 400);
     $us = getUsers();
-    foreach($us as &$x) { if($x['id'] === $id) { $s = mkSalt(); $x['ps'] = $s; $x['ph'] = hashPw('123456', $s); kvsetj('users', $us); ok(null, '密码已重置为123456'); return; } }
+    foreach($us as &$x) { if($x['id'] === $id) { $s = mkSalt(); $x['passwordSalt'] = $s; $x['passwordHash'] = hashPw('123456', $s); kvsetj('users', $us); ok(null, '密码已重置为123456'); return; } }
     err('用户不存在', 404);
 }
 elseif($a === 'get-orders') {
@@ -287,7 +287,7 @@ elseif($a === 'update-menu') {
 }
 elseif($a === 'clear-all-orders') {
     $ad = needAdmin(); $pw = $_POST['password'] ?? ''; if(!$pw) err('请输入管理员密码', 400);
-    foreach(getUsers() as $z) if($z['id'] === $ad['id']) { if(!checkPw($pw, $z['ps'], $z['ph'])) err('密码错误', 403); break; }
+    foreach(getUsers() as $z) if($z['id'] === $ad['id']) { if(!checkPw($pw, $z['passwordSalt'], $z['passwordHash'])) err('密码错误', 403); break; }
     $dl = 0; foreach(kvkeys() as $k) { if(strpos($k, 'order_') === 0) { kvdel($k); $dl++; } }
     ok(['count'=>$dl], "已清除 $dl 条订单");
 }
