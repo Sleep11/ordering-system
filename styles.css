@@ -90,7 +90,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
 }
 
-.hidden { display: none !important; }
+.hidden { display: none; }
 
 /* ============ 按钮 ============ */
 
@@ -600,11 +600,12 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
+  min-height: 40px;
   transition: all 0.12s;
   text-decoration: none;
 }
@@ -754,6 +755,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
 /* ============ 面板 ============ */
 .panel {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 200px;
   background: var(--panel);
   border: 1px solid var(--line-light);
   border-radius: var(--radius-lg);
@@ -1374,8 +1377,9 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
     padding: 1px 6px;
   }
   .order-card .order-actions .btn {
-    padding: 3px 6px;
+    padding: 4px 8px;
     font-size: 11px;
+    min-height: 32px;
   }
 
 
@@ -1385,7 +1389,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
     padding: 4px 6px;
   }
   .dish-item-name {
-    font-size: 12px !important;
+    font-size: 12px;
   }
   .dish-price-wrap {
     flex: 0 0 70px;
@@ -1586,9 +1590,9 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
 .order-card {
   display: grid;
-  grid-template-columns: 56px 1fr auto auto auto;
-  align-items: start;
-  gap: 2px 10px;
+  grid-template-columns: 70px 1fr auto auto auto;
+  align-items: center;
+  gap: 4px 10px;
   padding: 5px 10px;
   min-height: 34px;
   border-bottom: 1px solid var(--line-light);
@@ -1653,35 +1657,48 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
 .order-card .order-money {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 6px 14px;
   gap: 6px 10px;
   font-size: 12px;
   color: var(--text-secondary);
   margin-left: auto;
-  min-width: 150px;
+  min-width: 0;
 }
 
-.order-card .money-item {
+.order-card .order-money .money-item {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  min-width: 42px;
+  min-width: 38px;
+  padding: 0 2px;
 }
+
+.order-card .order-money .money-item.money-price {
+  min-width: 44px;
+}
+
+.order-card .order-money .money-label {
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.2;
+}
+
 .money-price .money-value {
   color: #1e40af;
 }
 
 
-.order-card .money-label {
-  font-size: 11px;
-  color: var(--muted);
+
+/* consolidated money-value in .money-item above */
+.order-card .order-money .money-value {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
 }
 
-.order-card .money-value {
-  font-size: 13px;
-  font-weight: 800;
+.money-price .money-value {
+  color: #1e40af;
 }
 
 .money-receivable .money-value {
@@ -1693,7 +1710,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .money-discount .money-value {
-  color: var(--text);
+  color: var(--text-secondary);
 }
 
 .money-discount.has-value .money-value {
@@ -1701,11 +1718,11 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .money-refund .money-value {
-  color: var(--danger);
+  color: #d97706;
 }
 
 .money-refund.refunded .money-value {
-  color: var(--danger);
+  color: var(--success);
 }
 
 .order-card .order-actions {

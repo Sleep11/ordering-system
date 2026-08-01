@@ -27,7 +27,7 @@
   var MIN_REFRESH_INTERVAL = 3000;
   var USERS_REFRESH_INTERVAL = 30000;
   var ORDERS_REFRESH_INTERVAL = 8000;
-  var APP_VERSION = '2.5.1.7';
+  var APP_VERSION = '2.5.1.8';
   var COLLAPSED_KEY = 'ordering_collapsed_sections';
   var DEFAULT_SAFE_USERS = [
     { id: 'admin_chenli', name: '陈立昊', role: 'admin' },
@@ -583,6 +583,8 @@
     if (currentUser.role === 'admin') {
       document.getElementById('sidebar').classList.remove('hidden');
       document.getElementById('section-dish').classList.remove('hidden');
+      var clearBtn = document.getElementById('clearAllOrdersBtn');
+      if (clearBtn) clearBtn.style.display = '';
       document.getElementById('section-admin').classList.remove('hidden');
       document.getElementById('section-report').classList.remove('hidden');
       document.getElementById('userSelectGroup').style.display = '';
@@ -591,6 +593,8 @@
     } else {
       document.getElementById('sidebar').classList.add('hidden');
       document.getElementById('section-dish').classList.add('hidden');
+      var clearBtn2 = document.getElementById('clearAllOrdersBtn');
+      if (clearBtn2) clearBtn2.style.display = 'none';
       document.getElementById('section-admin').classList.add('hidden');
       document.getElementById('section-report').classList.add('hidden');
       document.getElementById('userSelectGroup').style.display = 'none';
@@ -601,16 +605,20 @@
     // 设置日期默认值
     var dateInput = document.getElementById('orderDate');
     dateInput.value = getChinaDate();
-    var chinaNow = new Date(new Date().getTime() + 8 * 60 * 60 * 1000);
-    var minDate = new Date(chinaNow.getTime() - 30 * 24 * 60 * 60 * 1000);
-    var maxDate = new Date(chinaNow.getTime() + 30 * 24 * 60 * 60 * 1000);
+    var now = new Date();
+    // 中国时区 UTC+8
+    var chinaHour = (now.getUTCHours() + 8) % 24;
+    var chinaMin = now.getUTCMinutes();
+    var nowTotalMin = chinaHour * 60 + chinaMin;
+    // 日期范围：前后各30天（基于中国时区）
+    var chinaNowTs = now.getTime() + 8 * 60 * 60 * 1000;
+    var chinaToday = new Date(chinaNowTs);
+    var minDate = new Date(chinaToday.getTime() - 30 * 24 * 60 * 60 * 1000);
+    var maxDate = new Date(chinaToday.getTime() + 30 * 24 * 60 * 60 * 1000);
     dateInput.min = minDate.toISOString().split('T')[0];
     dateInput.max = maxDate.toISOString().split('T')[0];
 
     // 8:00-11:30 午餐 / 11:30-20:30 晚餐 / 20:30-8:00 明天午餐
-    var nowHour = chinaNow.getUTCHours();
-    var nowMin = chinaNow.getUTCMinutes();
-    var nowTotalMin = nowHour * 60 + nowMin;
     var mealSelect = document.getElementById('mealType');
     if (nowTotalMin >= 8 * 60 && nowTotalMin < 11 * 60 + 30) {
       mealSelect.value = 'lunch';
@@ -618,7 +626,8 @@
       mealSelect.value = 'dinner';
     } else {
       mealSelect.value = 'lunch';
-      var tomorrow = new Date(chinaNow.getTime() + 24 * 60 * 60 * 1000);
+      // 明天：UTC 明天
+      var tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
       dateInput.value = tomorrow.toISOString().split('T')[0];
     }
     // 触发 change 事件以更新盲盒价格
@@ -659,6 +668,41 @@
   document.getElementById('refreshBtn').addEventListener('click', function() {
     refreshDataNow();
     showToast('数据已刷新', 'success');
+  });
+
+  // ========== 清除所有订单（管理员） ==========
+  var clearOrdersState = 0;
+  document.getElementById('clearAllOrdersBtn').addEventListener('click', function() {
+    var btn = this;
+    if (clearOrdersState === 0) {
+      btn.textContent = '确认清除？';
+      btn.style.background = '#b91c1c';
+      clearOrdersState = 1;
+      setTimeout(function() { if (clearOrdersState === 1) { btn.textContent = '清除订单'; btn.style.background = ''; clearOrdersState = 0; } }, 5000);
+    } else if (clearOrdersState === 1) {
+      var password = prompt('请输入当前管理员密码以确认清除所有订单：');
+      if (!password) { btn.textContent = '清除订单'; btn.style.background = ''; clearOrdersState = 0; return; }
+      btn.textContent = '处理中...';
+      btn.disabled = true;
+      apiRequest('POST', 'clear-all-orders', { password: password }).then(function(result) {
+        btn.textContent = '清除订单';
+        btn.style.background = '';
+        btn.disabled = false;
+        clearOrdersState = 0;
+        if (result.success) {
+          showToast(result.message || '订单已清除', 'success');
+          refreshDataNow();
+        } else {
+          showToast(result.message || '操作失败', 'error');
+        }
+      }).catch(function() {
+        btn.textContent = '清除订单';
+        btn.style.background = '';
+        btn.disabled = false;
+        clearOrdersState = 0;
+        showToast('网络错误', 'error');
+      });
+    }
   });
 
   // ========== 退出登录 ==========
@@ -893,10 +937,16 @@
       }
     }
 
+    // 找到盲盒的 ID 作为默认选项
+    var blindBoxId = '';
+    for (var bi = 0; bi < dishItems.length; bi++) {
+      if (dishItems[bi].name === '盲盒') { blindBoxId = dishItems[bi].id; break; }
+    }
+
     container.innerHTML = '';
     for (var i = 0; i < allUsers.length; i++) {
       var user = allUsers[i];
-      var draft = drafts[user.id] || { checked: false, items: [{ dishId: '', qty: 1 }] };
+      var draft = drafts[user.id] || { checked: false, items: [{ dishId: blindBoxId, qty: 1 }] };
       if (!draft.items || draft.items.length === 0) draft.items = [{ dishId: '', qty: 1 }];
       var group = document.createElement('div');
       group.className = 'batch-user-group';

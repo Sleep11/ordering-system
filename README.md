@@ -282,7 +282,7 @@ var lunchSelfPick = false;     // 午餐自取减免
 var dinnerSelfPick = false;    // 晚餐自取减免
 var blindLunchPrice = 11;      // 午餐盲盒价
 var blindDinnerPrice = 12;     // 晚餐盲盒价
-var APP_VERSION = '2.5.1.7';   // 版本号（四位）
+var APP_VERSION = '2.5.1.8';   // 版本号（四位）
 ```
 
 ### 数据流
@@ -659,12 +659,19 @@ Ctrl+Shift+R 强制刷新。如果仍不行，检查顶部栏版本号是否最�
 
 ## 变更记录
 
-### v2.5.1.7 (2026-07-31)
+### v2.5.1.8 (2026-08-01)
+- 修复：恢复被误删的 .money-item .money-label CSS 桌面端样式，价格列正常显示
+- 修复：MSG-VVG2 - handleUpdateMenu 增加兜底解析，兼容多种 body 格式
+- 优化：批量订餐表格默认选项改为盲盒，新用户自动选中
+- 优化：日期判断改用标准 UTC+8 计算，修正跨日边界问题
+- 新增：管理员顶部栏「清除订单」按钮，需二次确认 + 密码验证
+- 新增：api.node.js clear-all-orders 端点，删除全部 order_ 数据
+
+### v2.5.1.7 (2026-08-01)
 - 规则：新增"优化"触发规则，说"优化"时自动优化双端样式、友好提示、性能
 - 文档：AGENTS.md 新增 Optimization Rule 章节
 
 ### v2.5.1.6 (2026-07-31)
-
 - 规则：新增"测试"触发规则，说"测试"时自动深度检查并修复，然后提交部署
 - 文档：AGENTS.md 新增 Deep Test Rule 章节
 

@@ -315,6 +315,8 @@ async function handleRequest() {
     return handleGetMenu();
   } else if (action === 'update-menu' && method === 'POST') {
     return handleUpdateMenu();
+  } else if (action === 'clear-all-orders' && method === 'POST') {
+    return handleClearAllOrders();
   } else if (action === 'restore-kv' && method === 'POST') {
     return handleRestoreKV();
   } else {
@@ -1339,12 +1341,18 @@ async function handleUpdateMenu() {
     }
 
     var body = req.body || {};
+    // 兼容多种 body 格式：纯字符串 / URL-encoded 对象 / JSON 字符串
     if (typeof body === 'string') {
       try { body = JSON.parse(body); } catch(e) {}
     }
+    // 如果 body 是空对象或 menu 字段缺失，尝试从原始 request body 解析
     var menu = normalizeMenuPayload(body && body.menu);
     if (!Array.isArray(menu) && body && body.menuJson !== undefined) {
       menu = normalizeMenuPayload(body.menuJson);
+    }
+    // 兜底：如果 body.menu 和 body.menuJson 都解析失败，尝试将整个 body 当作菜单
+    if (!Array.isArray(menu) && body && !body.menu && !body.menuJson) {
+      menu = normalizeMenuPayload(body);
     }
     if (!Array.isArray(menu)) {
       return sendJSON({ success: false, message: '菜单数据格式错误' }, 400);
@@ -1376,6 +1384,46 @@ async function handleUpdateMenu() {
 }
 
 // 启动
+
+// 清除所有订单（管理员专用，需密码验证）
+async function handleClearAllOrders() {
+  try {
+    var currentUser = await auth.getCurrentUser();
+    if (!currentUser) return sendJSON({ success: false, message: '未登录' }, 401);
+    if (currentUser.role !== 'admin') return sendJSON({ success: false, message: '无权限' }, 403);
+
+    var body = req.body || {};
+    if (typeof body === 'string') {
+      try { body = JSON.parse(body); } catch(e) {}
+    }
+    var password = body.password || '';
+    if (!password) return sendJSON({ success: false, message: '请输入管理员密码' }, 400);
+
+    // 验证密码
+    var users = await readUsersWithRetry(3);
+    if (!users) return sendJSON({ success: false, message: '用户数据读取失败' }, 500);
+    var adminUser = null;
+    for (var i = 0; i < users.length; i++) {
+      if (users[i].id === currentUser.id) { adminUser = users[i]; break; }
+    }
+    if (!adminUser) return sendJSON({ success: false, message: '管理员用户不存在' }, 404);
+    if (adminUser.password !== password) return sendJSON({ success: false, message: '密码错误' }, 403);
+
+    // 删除所有 order_ 开头的 key
+    var allKeys = await kv.listKeys();
+    var deleted = 0;
+    for (var i = 0; i < allKeys.length; i++) {
+      if (allKeys[i].indexOf('order_') === 0) {
+        kv.deleteKey(allKeys[i]);
+        deleted++;
+      }
+    }
+
+    return sendJSON({ success: true, message: '已清除 ' + deleted + ' 条订单', data: { count: deleted } });
+  } catch (e) {
+    return sendJSON({ success: false, message: '清除订单失败: ' + e.message }, 500);
+  }
+}
 
 // 批量恢复 KV 数据（管理员专用）
 async function handleRestoreKV() {
