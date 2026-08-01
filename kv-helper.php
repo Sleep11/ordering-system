@@ -1,4 +1,5 @@
 <?php
+<?php
 // ========== KV 数据库辅助函数 ==========
 
 function kv_get($key) {

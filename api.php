@@ -1,4 +1,5 @@
 <?php
+<?php
 // ========== 多人在线点餐系统 — PHP API ==========
 require_once 'auth.php';
 require_once 'kv-helper.php';
