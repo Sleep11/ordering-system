@@ -317,9 +317,7 @@ async function handleRequest() {
     return handleUpdateMenu();
   } else if (action === 'clear-all-orders' && method === 'POST') {
     return handleClearAllOrders();
-  } else if (action === 'reset-users-init' && method === 'POST') {
-    return handleResetUsersInit();
-  } else if (action === 'restore-kv' && method === 'POST') {
+} else if (action === 'restore-kv' && method === 'POST') {
     return handleRestoreKV();
   } else {
     return sendJSON({ success: false, message: '未知操作: ' + action }, 400);
