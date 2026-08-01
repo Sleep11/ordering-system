@@ -1,15 +1,15 @@
 <template>
-  <section id="section-orders" class="panel collapsible">
-    <div class="panel__header collapsible-toggle" @click="collapsed = !collapsed">
+  <section id="section-orders" class="panel">
+    <div class="panel__header collapsible-toggle" >
       <h2 class="panel__title">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
         </svg>
         本月订单
       </h2>
-      <svg class="collapse-arrow" :class="{ collapsed }" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      
     </div>
-    <div class="panel__body collapsible-body" :class="{ collapsed }">
+    <div class="panel__body collapsible-body" >
       <div v-if="!orders.sortedDates.length" class="empty-state">暂无订单</div>
       <div v-for="date in orders.sortedDates" :key="date" class="date-group">
         <div :class="['date-header', { today: date === today, collapsed: !expandedDates[date] }]" @click="toggleDate(date)">
@@ -128,13 +128,12 @@ const toast = inject('toast')
 const emit = defineEmits(['editOrder'])
 
 const today = getChinaDate()
-const collapsed = ref(false)
 const expandedDates = reactive({})
 
 // Initialize expanded dates
 for (const date of orders.sortedDates.value) {
   if (!(date in expandedDates)) {
-    expandedDates[date] = date === today
+    expandedDates[date] = true
   }
 }
 

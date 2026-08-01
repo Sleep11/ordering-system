@@ -44,7 +44,7 @@ import { useUsersStore } from '@/stores/users'
 
 const users = useUsersStore()
 const toast = inject('toast')
-const collapsed = ref(true)
+const collapsed = ref(false)
 const newName = ref('')
 const newRole = ref('user')
 

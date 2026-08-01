@@ -1,7 +1,7 @@
 {
   "name": "ordering-system",
   "private": true,
-  "version": "3.0.0.1",
+  "version": "3.0.0.17",
   "type": "module",
   "scripts": {
     "dev": "vite",

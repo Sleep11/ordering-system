@@ -32,7 +32,7 @@ import { useDishesStore } from '@/stores/dishes'
 
 const dishes = useDishesStore()
 const toast = inject('toast')
-const collapsed = ref(true)
+const collapsed = ref(false)
 
 async function saveAll() {
   const rows = document.querySelectorAll('.dish-item-row')
