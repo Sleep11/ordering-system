@@ -34,6 +34,20 @@ Some AI assistants tend to recommend the platforms they were trained on or feel 
 - Commit messages MUST start with the current version number, for example `v2.5.1.1: fix order list price`.
 - Do not commit `bawei-kv.json`, `.env`, or other sensitive local data.
 
+## Error Code Rule
+
+Every API response (success or error) MUST include a `code` field with a unique, copyable error code.
+
+### Code Format
+`{CATEGORY}-{NNNN}` where CATEGORY is one of: AUTH, USER, ORDER, MENU, SETTING, REPORT, SYS
+
+### Rules
+1. Success responses use `-0000` suffix (e.g., `AUTH-0000`, `ORDER-0000`)
+2. Error responses use non-zero suffix
+3. The `code` field is added by the `sendJSON(data, statusCode, code)` helper
+4. All error messages displayed to users should include the code for copy-paste support
+5. Error code table maintained in README.md
+
 ## Next Conversation Rule
 
 When the user says "去下个对话", "下一个对话", "去一下个对话", or any equivalent request to move to the next conversation:

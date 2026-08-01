@@ -233,10 +233,13 @@ async function initDefaultUsers() {
 }
 
 // 发送 JSON 响应
-function sendJSON(data, statusCode) {
+function sendJSON(data, statusCode, code) {
   if (res.__rth_sent) return;
   res.__rth_sent = true;
   statusCode = statusCode || 200;
+  if (code && data && typeof data === 'object' && !Array.isArray(data)) {
+    data.code = code;
+  }
   res.status(statusCode);
   res.set('Content-Type', 'application/json; charset=utf-8');
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -320,7 +323,7 @@ async function handleRequest() {
 } else if (action === 'restore-kv' && method === 'POST') {
     return handleRestoreKV();
   } else {
-    return sendJSON({ success: false, message: '未知操作: ' + action }, 400);
+    return sendJSON({ success: false, message: '未知操作: ' + action, code: 'SYS-0001' }, 400);
   }
 }
 
@@ -335,7 +338,7 @@ async function handleGetSettings() {
     var lunchSelfPick = await kv.get('settings_lunch_selfpick');
     var dinnerSelfPick = await kv.get('settings_dinner_selfpick');
     return sendJSON({
-      success: true,
+      success: true, code: 'AUTH-0000',
       data: {
         settings: {
           orderLocked: orderLocked === 'true',
@@ -349,7 +352,7 @@ async function handleGetSettings() {
       }
     });
   } catch (e) {
-    return sendJSON({ success: false, message: '获取设置失败: ' + e.message }, 500);
+    return sendJSON({ success: false, message: '获取设置失败: ' + e.message, code: 'SYS-0002' }, 500);
   }
 }
 
@@ -358,10 +361,10 @@ async function handleUpdateSettings() {
   try {
     var currentUser = await auth.getCurrentUser();
     if (!currentUser) {
-      return sendJSON({ success: false, message: '未登录' }, 401);
+      return sendJSON({ success: false, message: '未登录', code: 'AUTH-0001' }, 401);
     }
     if (currentUser.role !== 'admin') {
-      return sendJSON({ success: false, message: '无权限' }, 403);
+      return sendJSON({ success: false, message: '无权限', code: 'AUTH-0002' }, 403);
     }
 
     var body = req.body || {};
@@ -369,7 +372,7 @@ async function handleUpdateSettings() {
     var value = body.value;
 
     if (!key) {
-      return sendJSON({ success: false, message: '设置 key 不能为空' }, 400);
+      return sendJSON({ success: false, message: '设置 key 不能为空', code: 'SETTING-0001' }, 400);
     }
 
     // 盲盒价格校验
@@ -386,9 +389,9 @@ async function handleUpdateSettings() {
       await applySelfPickDiscountToToday(key, String(value) === 'true');
     }
 
-    return sendJSON({ success: true, message: '设置更新成功' });
+    return sendJSON({ success: true, message: '设置更新成功', code: 'SETTING-0000' });
   } catch (e) {
-    return sendJSON({ success: false, message: '更新设置失败: ' + e.message }, 500);
+    return sendJSON({ success: false, message: '更新设置失败: ' + e.message, code: 'SETTING-0003' }, 500);
   }
 }
 
@@ -400,12 +403,12 @@ async function handleLogin() {
     var password = body.password;
     
     if (!username || !password) {
-      return sendJSON({ success: false, message: '用户名和密码不能为空' }, 400);
+      return sendJSON({ success: false, message: '用户名和密码不能为空', code: 'AUTH-0003' }, 400);
     }
     
     var users = await readUsersWithRetry(3);
     if (!users) {
-      return sendJSON({ success: false, message: '用户列表暂时读取失败，请稍后重试' }, 503);
+      return sendJSON({ success: false, message: '用户列表暂时读取失败，请稍后重试', code: 'USER-0006' }, 503);
     }
     
     var user = null;
@@ -414,7 +417,7 @@ async function handleLogin() {
     }
     
     if (!user) {
-      return sendJSON({ success: false, message: '用户名或密码错误' }, 401);
+      return sendJSON({ success: false, message: '用户名或密码错误', code: 'AUTH-0004' }, 401);
     }
     
     // 检查登录锁定
@@ -427,7 +430,7 @@ async function handleLogin() {
     if (!auth.verifyPassword(password, user.passwordSalt, user.passwordHash)) {
       // 记录失败（异步，不阻塞响应）
       auth.recordLoginFail(user.id).catch(function(){});
-      return sendJSON({ success: false, message: '用户名或密码错误' }, 401);
+      return sendJSON({ success: false, message: '用户名或密码错误', code: 'AUTH-0004' }, 401);
     }
     
     // 清除失败记录
@@ -437,14 +440,14 @@ async function handleLogin() {
     var token = auth.createSession(user.id, user.role);
     
     return sendJSON({
-      success: true,
+      success: true, code: 'AUTH-0000',
       data: {
         token: token,
         user: { id: user.id, name: user.name, role: user.role }
       }
     });
   } catch (e) {
-    return sendJSON({ success: false, message: '登录失败: ' + e.message }, 500);
+    return sendJSON({ success: false, message: '登录失败: ' + e.message, code: 'AUTH-0006' }, 500);
   }
 }
 
@@ -455,9 +458,9 @@ async function handleLogout() {
     if (token) {
       auth.deleteSession(token);
     }
-    return sendJSON({ success: true, message: '已退出登录' });
+    return sendJSON({ success: true, message: '已退出登录', code: 'AUTH-0000' });
   } catch (e) {
-    return sendJSON({ success: false, message: '退出失败: ' + e.message }, 500);
+    return sendJSON({ success: false, message: '退出失败: ' + e.message, code: 'AUTH-0007' }, 500);
   }
 }
 
@@ -466,11 +469,11 @@ async function handleMe() {
   try {
     var user = await auth.getCurrentUser();
     if (!user) {
-      return sendJSON({ success: false, message: '未登录' }, 401);
+      return sendJSON({ success: false, message: '未登录', code: 'AUTH-0001' }, 401);
     }
-    return sendJSON({ success: true, data: { user: user } });
+    return sendJSON({ success: true, code: 'AUTH-0000', data: { user: user } });
   } catch (e) {
-    return sendJSON({ success: false, message: '获取用户信息失败: ' + e.message }, 500);
+    return sendJSON({ success: false, message: '获取用户信息失败: ' + e.message, code: 'AUTH-0008' }, 500);
   }
 }
 
@@ -479,7 +482,7 @@ async function handleChangePassword() {
   try {
     var currentUser = await auth.getCurrentUser();
     if (!currentUser) {
-      return sendJSON({ success: false, message: '未登录' }, 401);
+      return sendJSON({ success: false, message: '未登录', code: 'AUTH-0001' }, 401);
     }
     
     var body = req.body || {};
@@ -487,16 +490,16 @@ async function handleChangePassword() {
     var newPassword = body.newPassword;
     
     if (!oldPassword || !newPassword) {
-      return sendJSON({ success: false, message: '旧密码和新密码不能为空' }, 400);
+      return sendJSON({ success: false, message: '旧密码和新密码不能为空', code: 'AUTH-0009' }, 400);
     }
     
     if (newPassword.length < 6) {
-      return sendJSON({ success: false, message: '新密码长度不能少于 6 位' }, 400);
+      return sendJSON({ success: false, message: '新密码长度不能少于 6 位', code: 'AUTH-0010' }, 400);
     }
     
     var users = await readUsersWithRetry(3);
     if (!users) {
-      return sendJSON({ success: false, message: '用户列表暂时读取失败，请稍后重试' }, 503);
+      return sendJSON({ success: false, message: '用户列表暂时读取失败，请稍后重试', code: 'USER-0006' }, 503);
     }
     var user = null;
     for (var i = 0; i < users.length; i++) {
@@ -504,11 +507,11 @@ async function handleChangePassword() {
     }
     
     if (!user) {
-      return sendJSON({ success: false, message: '用户不存在' }, 404);
+      return sendJSON({ success: false, message: '用户不存在', code: 'USER-0001' }, 404);
     }
     
     if (!auth.verifyPassword(oldPassword, user.passwordSalt, user.passwordHash)) {
-      return sendJSON({ success: false, message: '旧密码错误' }, 400);
+      return sendJSON({ success: false, message: '旧密码错误', code: 'AUTH-0011' }, 400);
     }
     
     // 更新密码
@@ -521,9 +524,9 @@ async function handleChangePassword() {
     // 删除所有旧会话
     await auth.deleteUserSessions(currentUser.id);
     
-    return sendJSON({ success: true, message: '密码修改成功，请重新登录' });
+    return sendJSON({ success: true, message: '密码修改成功，请重新登录', code: 'AUTH-0000' });
   } catch (e) {
-    return sendJSON({ success: false, message: '修改密码失败: ' + e.message }, 500);
+    return sendJSON({ success: false, message: '修改密码失败: ' + e.message, code: 'AUTH-0012' }, 500);
   }
 }
 
@@ -532,12 +535,12 @@ async function handleGetUsers() {
   try {
     var currentUser = await auth.getCurrentUser();
     if (!currentUser) {
-      return sendJSON({ success: false, message: '未登录' }, 401);
+      return sendJSON({ success: false, message: '未登录', code: 'AUTH-0001' }, 401);
     }
     
     var users = await readUsersWithRetry(3);
     if (!users) {
-      return sendJSON({ success: false, message: '用户列表暂时读取失败，请稍后刷新' }, 503);
+      return sendJSON({ success: false, message: '用户列表暂时读取失败，请稍后刷新', code: 'USER-0006' }, 503);
     }
     
     // 过滤敏感信息
@@ -545,9 +548,9 @@ async function handleGetUsers() {
       return { id: u.id, name: u.name, role: u.role };
     });
     
-    return sendJSON({ success: true, data: { users: safeUsers } });
+    return sendJSON({ success: true, code: 'USER-0000', data: { users: safeUsers } });
   } catch (e) {
-    return sendJSON({ success: false, message: '获取用户列表失败: ' + e.message }, 500);
+    return sendJSON({ success: false, message: '获取用户列表失败: ' + e.message, code: 'USER-0007' }, 500);
   }
 }
 
@@ -556,10 +559,10 @@ async function handleCreateUser() {
   try {
     var currentUser = await auth.getCurrentUser();
     if (!currentUser) {
-      return sendJSON({ success: false, message: '未登录' }, 401);
+      return sendJSON({ success: false, message: '未登录', code: 'AUTH-0001' }, 401);
     }
     if (currentUser.role !== 'admin') {
-      return sendJSON({ success: false, message: '无权限' }, 403);
+      return sendJSON({ success: false, message: '无权限', code: 'AUTH-0002' }, 403);
     }
     
     var body = req.body || {};
@@ -567,22 +570,22 @@ async function handleCreateUser() {
     var role = body.role || 'user';
     
     if (!username) {
-      return sendJSON({ success: false, message: '用户名不能为空' }, 400);
+      return sendJSON({ success: false, message: '用户名不能为空', code: 'USER-0002' }, 400);
     }
     
     if (role !== 'admin' && role !== 'user') {
-      return sendJSON({ success: false, message: '角色无效' }, 400);
+      return sendJSON({ success: false, message: '角色无效', code: 'USER-0003' }, 400);
     }
     
     var users = await readUsersWithRetry(3);
     if (!users) {
-      return sendJSON({ success: false, message: '用户列表暂时读取失败，请稍后重试' }, 503);
+      return sendJSON({ success: false, message: '用户列表暂时读取失败，请稍后重试', code: 'USER-0006' }, 503);
     }
     
     // 检查用户名是否重复
     for (var i = 0; i < users.length; i++) {
       if (users[i].name === username) {
-        return sendJSON({ success: false, message: '用户名已存在' }, 400);
+        return sendJSON({ success: false, message: '用户名已存在', code: 'USER-0004' }, 400);
       }
     }
     
@@ -603,12 +606,12 @@ async function handleCreateUser() {
     kv.setJSON('users', users);
     
     return sendJSON({
-      success: true,
+      success: true, code: 'AUTH-0000',
       data: { user: { id: userId, name: username, role: role } },
       message: '用户添加成功，默认密码为 123456'
     });
   } catch (e) {
-    return sendJSON({ success: false, message: '添加用户失败: ' + e.message }, 500);
+    return sendJSON({ success: false, message: '添加用户失败: ' + e.message, code: 'USER-0008' }, 500);
   }
 }
 
@@ -617,22 +620,22 @@ async function handleDeleteUser() {
   try {
     var currentUser = await auth.getCurrentUser();
     if (!currentUser) {
-      return sendJSON({ success: false, message: '未登录' }, 401);
+      return sendJSON({ success: false, message: '未登录', code: 'AUTH-0001' }, 401);
     }
     if (currentUser.role !== 'admin') {
-      return sendJSON({ success: false, message: '无权限' }, 403);
+      return sendJSON({ success: false, message: '无权限', code: 'AUTH-0002' }, 403);
     }
     
     var body = req.body || {};
     var userId = body.userId;
     
     if (!userId) {
-      return sendJSON({ success: false, message: '用户 ID 不能为空' }, 400);
+      return sendJSON({ success: false, message: '用户 ID 不能为空', code: 'USER-0009' }, 400);
     }
     
     var users = await readUsersWithRetry(3);
     if (!users) {
-      return sendJSON({ success: false, message: '用户列表暂时读取失败，请稍后重试' }, 503);
+      return sendJSON({ success: false, message: '用户列表暂时读取失败，请稍后重试', code: 'USER-0006' }, 503);
     }
     
     var userIndex = -1;
@@ -646,17 +649,17 @@ async function handleDeleteUser() {
     }
     
     if (userIndex === -1) {
-      return sendJSON({ success: false, message: '用户不存在' }, 404);
+      return sendJSON({ success: false, message: '用户不存在', code: 'USER-0001' }, 404);
     }
     
     // 不能删除自己
     if (currentUser.id === userId) {
-      return sendJSON({ success: false, message: '不能删除自己的账号' }, 400);
+      return sendJSON({ success: false, message: '不能删除自己的账号', code: 'USER-0010' }, 400);
     }
     
     // 不能删除管理员（除非自己是管理员）
     if (targetUser.role === 'admin' && currentUser.role !== 'admin') {
-      return sendJSON({ success: false, message: '无权限删除管理员' }, 403);
+      return sendJSON({ success: false, message: '无权限删除管理员', code: 'USER-0005' }, 403);
     }
     
     // 确保至少保留一个管理员
@@ -666,7 +669,7 @@ async function handleDeleteUser() {
         if (users[i].role === 'admin') adminCount++;
       }
       if (adminCount <= 1) {
-        return sendJSON({ success: false, message: '必须保留至少一个管理员' }, 400);
+        return sendJSON({ success: false, message: '必须保留至少一个管理员', code: 'USER-0011' }, 400);
       }
     }
     
@@ -676,9 +679,9 @@ async function handleDeleteUser() {
     // 删除该用户的所有会话
     await auth.deleteUserSessions(userId);
     
-    return sendJSON({ success: true, message: '用户删除成功' });
+    return sendJSON({ success: true, message: '用户删除成功', code: 'USER-0000' });
   } catch (e) {
-    return sendJSON({ success: false, message: '删除用户失败: ' + e.message }, 500);
+    return sendJSON({ success: false, message: '删除用户失败: ' + e.message, code: 'USER-0012' }, 500);
   }
 }
 
@@ -687,22 +690,22 @@ async function handleResetPassword() {
   try {
     var currentUser = await auth.getCurrentUser();
     if (!currentUser) {
-      return sendJSON({ success: false, message: '未登录' }, 401);
+      return sendJSON({ success: false, message: '未登录', code: 'AUTH-0001' }, 401);
     }
     if (currentUser.role !== 'admin') {
-      return sendJSON({ success: false, message: '无权限' }, 403);
+      return sendJSON({ success: false, message: '无权限', code: 'AUTH-0002' }, 403);
     }
     
     var body = req.body || {};
     var userId = body.userId;
     
     if (!userId) {
-      return sendJSON({ success: false, message: '用户 ID 不能为空' }, 400);
+      return sendJSON({ success: false, message: '用户 ID 不能为空', code: 'USER-0009' }, 400);
     }
     
     var users = await readUsersWithRetry(3);
     if (!users) {
-      return sendJSON({ success: false, message: '用户列表暂时读取失败，请稍后重试' }, 503);
+      return sendJSON({ success: false, message: '用户列表暂时读取失败，请稍后重试', code: 'USER-0006' }, 503);
     }
     var user = null;
     for (var i = 0; i < users.length; i++) {
@@ -710,7 +713,7 @@ async function handleResetPassword() {
     }
     
     if (!user) {
-      return sendJSON({ success: false, message: '用户不存在' }, 404);
+      return sendJSON({ success: false, message: '用户不存在', code: 'USER-0001' }, 404);
     }
     
     var salt = auth.generateSalt();
@@ -722,9 +725,9 @@ async function handleResetPassword() {
     // 删除该用户的所有会话
     await auth.deleteUserSessions(userId);
     
-    return sendJSON({ success: true, message: '密码已重置为 123456' });
+    return sendJSON({ success: true, message: '密码已重置为 123456', code: 'USER-0013' });
   } catch (e) {
-    return sendJSON({ success: false, message: '重置密码失败: ' + e.message }, 500);
+    return sendJSON({ success: false, message: '重置密码失败: ' + e.message, code: 'USER-0014' }, 500);
   }
 }
 
@@ -733,7 +736,7 @@ async function handleGetOrders() {
   try {
     var currentUser = await auth.getCurrentUser();
     if (!currentUser) {
-      return sendJSON({ success: false, message: '未登录' }, 401);
+      return sendJSON({ success: false, message: '未登录', code: 'AUTH-0001' }, 401);
     }
     
     // 获取当前月份的日期范围
@@ -765,9 +768,9 @@ async function handleGetOrders() {
 
     var orders = await readOrderKeysInBatches(matchedKeys);
     
-    return sendJSON({ success: true, data: { orders: orders } });
+    return sendJSON({ success: true, code: 'ORDER-0000', data: { orders: orders } });
   } catch (e) {
-    return sendJSON({ success: false, message: '获取订单失败: ' + e.message }, 500);
+    return sendJSON({ success: false, message: '获取订单失败: ' + e.message, code: 'ORDER-0001' }, 500);
   }
 }
 
@@ -776,7 +779,7 @@ async function handleCreateOrder() {
   try {
     var currentUser = await auth.getCurrentUser();
     if (!currentUser) {
-      return sendJSON({ success: false, message: '未登录' }, 401);
+      return sendJSON({ success: false, message: '未登录', code: 'AUTH-0001' }, 401);
     }
     
     var body = req.body || {};
@@ -791,15 +794,15 @@ async function handleCreateOrder() {
     
     // 权限检查
     if (currentUser.role !== 'admin' && userId !== currentUser.id) {
-      return sendJSON({ success: false, message: '无权限为他人订餐' }, 403);
+      return sendJSON({ success: false, message: '无权限为他人订餐', code: 'ORDER-0006' }, 403);
     }
     
     if (!date || !mealType) {
-      return sendJSON({ success: false, message: '日期和餐别不能为空' }, 400);
+      return sendJSON({ success: false, message: '日期和餐别不能为空', code: 'ORDER-0002' }, 400);
     }
     
     if (mealType !== 'lunch' && mealType !== 'dinner') {
-      return sendJSON({ success: false, message: '餐别无效' }, 400);
+      return sendJSON({ success: false, message: '餐别无效', code: 'ORDER-0003' }, 400);
     }
     
     // 不能提交未来日期
@@ -815,22 +818,22 @@ async function handleCreateOrder() {
       // 菜单项：价格从菜单中读取
       var menuId = body.menuId;
       if (!menuId) {
-        return sendJSON({ success: false, message: '请选择餐品' }, 400);
+        return sendJSON({ success: false, message: '请选择餐品', code: 'ORDER-0004' }, 400);
       }
       var menu = await getMenuItem(menuId);
       if (!menu) {
-        return sendJSON({ success: false, message: '餐品不存在' }, 404);
+        return sendJSON({ success: false, message: '餐品不存在', code: 'MENU-0001' }, 404);
       }
       price = menu.price;
       itemName = menu.name;
     } else {
       price = parseFloat(price);
       if (isNaN(price) || price < 0) {
-        return sendJSON({ success: false, message: '价格无效' }, 400);
+        return sendJSON({ success: false, message: '价格无效', code: 'ORDER-0009' }, 400);
       }
       price = Math.round(price * 100) / 100;
       if (!itemName) {
-        return sendJSON({ success: false, message: '自定义餐品名称不能为空' }, 400);
+        return sendJSON({ success: false, message: '自定义餐品名称不能为空', code: 'ORDER-0010' }, 400);
       }
     }
 
@@ -841,7 +844,7 @@ async function handleCreateOrder() {
     }
     if (rawItems !== undefined && rawItems !== null) {
       if (!Array.isArray(rawItems) || rawItems.length === 0) {
-        return sendJSON({ success: false, message: '餐食数据格式错误' }, 400);
+        return sendJSON({ success: false, message: '餐食数据格式错误', code: 'ORDER-0011' }, 400);
       }
       var totalPrice = 0;
       var itemNames = [];
@@ -854,7 +857,7 @@ async function handleCreateOrder() {
         if (rawItem.menuId) {
           var menuItem = await getMenuItem(rawItem.menuId);
           if (!menuItem) {
-            return sendJSON({ success: false, message: '餐品不存在' }, 404);
+            return sendJSON({ success: false, message: '餐品不存在', code: 'MENU-0001' }, 404);
           }
           name = menuItem.name;
           unitPrice = menuItem.price;
@@ -862,7 +865,7 @@ async function handleCreateOrder() {
           name = rawItem.name;
           unitPrice = parseFloat(rawItem.price);
           if (!name || isNaN(unitPrice) || unitPrice < 0) {
-            return sendJSON({ success: false, message: '自定义餐品信息不完整' }, 400);
+            return sendJSON({ success: false, message: '自定义餐品信息不完整', code: 'ORDER-0012' }, 400);
           }
           unitPrice = Math.round(unitPrice * 100) / 100;
         }
@@ -891,7 +894,7 @@ async function handleCreateOrder() {
     // 获取用户信息
     var users = await readUsersWithRetry(3);
     if (!users) {
-      return sendJSON({ success: false, message: '用户列表暂时读取失败，请稍后重试' }, 503);
+      return sendJSON({ success: false, message: '用户列表暂时读取失败，请稍后重试', code: 'USER-0006' }, 503);
     }
     var targetUser = null;
     for (var i = 0; i < users.length; i++) {
@@ -899,7 +902,7 @@ async function handleCreateOrder() {
     }
     
     if (!targetUser) {
-      return sendJSON({ success: false, message: '用户不存在' }, 404);
+      return sendJSON({ success: false, message: '用户不存在', code: 'USER-0001' }, 404);
     }
     
     if (!personName) personName = targetUser.name;
@@ -928,10 +931,10 @@ async function handleCreateOrder() {
       var lunchLockedSetting = await kv.get('settings_lunch_locked');
       var dinnerLockedSetting = await kv.get('settings_dinner_locked');
       if (mealType === 'lunch' && lunchLockedSetting === 'true') {
-        return sendJSON({ success: false, message: '午餐点餐已被管理员锁定' }, 403);
+        return sendJSON({ success: false, message: '午餐点餐已被管理员锁定', code: 'ORDER-0013' }, 403);
       }
       if (mealType === 'dinner' && dinnerLockedSetting === 'true') {
-        return sendJSON({ success: false, message: '晚餐点餐已被管理员锁定' }, 403);
+        return sendJSON({ success: false, message: '晚餐点餐已被管理员锁定', code: 'ORDER-0014' }, 403);
       }
     }
 
@@ -939,7 +942,7 @@ async function handleCreateOrder() {
     if (existingOrder && currentUser.role !== 'admin') {
       var lockedSetting = await kv.get('settings_order_locked');
       if (lockedSetting === 'true') {
-        return sendJSON({ success: false, message: '系统已锁定，当前不允许修改餐品' }, 403);
+        return sendJSON({ success: false, message: '系统已锁定，当前不允许修改餐品', code: 'ORDER-0015' }, 403);
       }
     }
 
@@ -979,9 +982,9 @@ async function handleCreateOrder() {
     
     kv.setJSON(orderKey, order);
     
-    return sendJSON({ success: true, data: { order: order }, message: '订单提交成功' });
+    return sendJSON({ success: true, data: { order: order }, message: '订单提交成功', code: 'ORDER-0000' });
   } catch (e) {
-    return sendJSON({ success: false, message: '提交订单失败: ' + e.message }, 500);
+    return sendJSON({ success: false, message: '提交订单失败: ' + e.message, code: 'ORDER-0017' }, 500);
   }
 }
 
@@ -990,39 +993,39 @@ async function handleDeleteOrder() {
   try {
     var currentUser = await auth.getCurrentUser();
     if (!currentUser) {
-      return sendJSON({ success: false, message: '未登录' }, 401);
+      return sendJSON({ success: false, message: '未登录', code: 'AUTH-0001' }, 401);
     }
     
     var body = req.body || {};
     var orderId = body.orderId;
     
     if (!orderId) {
-      return sendJSON({ success: false, message: '订单 ID 不能为空' }, 400);
+      return sendJSON({ success: false, message: '订单 ID 不能为空', code: 'ORDER-0018' }, 400);
     }
     
     var order = await kv.getJSON(orderId);
     if (!order) {
-      return sendJSON({ success: false, message: '订单不存在' }, 404);
+      return sendJSON({ success: false, message: '订单不存在', code: 'ORDER-0019' }, 404);
     }
     
     // 权限检查
     if (currentUser.role !== 'admin' && order.userId !== currentUser.id) {
-      return sendJSON({ success: false, message: '无权限删除此订单' }, 403);
+      return sendJSON({ success: false, message: '无权限删除此订单', code: 'ORDER-0005' }, 403);
     }
     
     // 锁定检查：如果系统锁定且非管理员，不能删除订单
     if (currentUser.role !== 'admin') {
       var lockedSetting = await kv.get('settings_order_locked');
       if (lockedSetting === 'true') {
-        return sendJSON({ success: false, message: '系统已锁定，当前不允许删除餐品' }, 403);
+        return sendJSON({ success: false, message: '系统已锁定，当前不允许删除餐品', code: 'ORDER-0016' }, 403);
       }
     }
     
     kv.deleteKey(orderId);
     
-    return sendJSON({ success: true, message: '订单删除成功' });
+    return sendJSON({ success: true, message: '订单删除成功', code: 'ORDER-0000' });
   } catch (e) {
-    return sendJSON({ success: false, message: '删除订单失败: ' + e.message }, 500);
+    return sendJSON({ success: false, message: '删除订单失败: ' + e.message, code: 'ORDER-0020' }, 500);
   }
 }
 
@@ -1031,17 +1034,17 @@ async function handleDeleteOrdersByDate() {
   try {
     var currentUser = await auth.getCurrentUser();
     if (!currentUser) {
-      return sendJSON({ success: false, message: '未登录' }, 401);
+      return sendJSON({ success: false, message: '未登录', code: 'AUTH-0001' }, 401);
     }
     if (currentUser.role !== 'admin') {
-      return sendJSON({ success: false, message: '无权限' }, 403);
+      return sendJSON({ success: false, message: '无权限', code: 'AUTH-0002' }, 403);
     }
     
     var body = req.body || {};
     var date = body.date;
     
     if (!date) {
-      return sendJSON({ success: false, message: '日期不能为空' }, 400);
+      return sendJSON({ success: false, message: '日期不能为空', code: 'ORDER-0021' }, 400);
     }
     
     var allKeys = await kv.listKeys();
@@ -1054,9 +1057,9 @@ async function handleDeleteOrdersByDate() {
       }
     }
     
-    return sendJSON({ success: true, message: '已删除 ' + deletedCount + ' 条订单' });
+    return sendJSON({ success: true, code: 'ORDER-0000', message: '已删除 ' + deletedCount + ' 条订单' });
   } catch (e) {
-    return sendJSON({ success: false, message: '删除订单失败: ' + e.message }, 500);
+    return sendJSON({ success: false, message: '删除订单失败: ' + e.message, code: 'ORDER-0020' }, 500);
   }
 }
 
@@ -1065,22 +1068,22 @@ async function handleUpdatePayment() {
   try {
     var currentUser = await auth.getCurrentUser();
     if (!currentUser) {
-      return sendJSON({ success: false, message: '未登录' }, 401);
+      return sendJSON({ success: false, message: '未登录', code: 'AUTH-0001' }, 401);
     }
     if (currentUser.role !== 'admin') {
-      return sendJSON({ success: false, message: '无权限修改付款状态' }, 403);
+      return sendJSON({ success: false, message: '无权限修改付款状态', code: 'ORDER-0007' }, 403);
     }
     
     var body = req.body || {};
     var orderId = body.orderId;
     
     if (!orderId) {
-      return sendJSON({ success: false, message: '订单 ID 不能为空' }, 400);
+      return sendJSON({ success: false, message: '订单 ID 不能为空', code: 'ORDER-0018' }, 400);
     }
     
     var order = await kv.getJSON(orderId);
     if (!order) {
-      return sendJSON({ success: false, message: '订单不存在' }, 404);
+      return sendJSON({ success: false, message: '订单不存在', code: 'ORDER-0019' }, 404);
     }
     
     var paid = body.paid !== undefined ? (body.paid === 'true' || body.paid === true) : !order.paid;
@@ -1100,9 +1103,9 @@ async function handleUpdatePayment() {
     
     kv.setJSON(orderId, order);
     
-    return sendJSON({ success: true, data: { order: order }, message: '付款状态更新成功' });
+    return sendJSON({ success: true, data: { order: order }, message: '付款状态更新成功', code: 'ORDER-0000' });
   } catch (e) {
-    return sendJSON({ success: false, message: '更新付款状态失败: ' + e.message }, 500);
+    return sendJSON({ success: false, message: '更新付款状态失败: ' + e.message, code: 'ORDER-0022' }, 500);
   }
 }
 
@@ -1111,27 +1114,27 @@ async function handleRefundOrder() {
   try {
     var currentUser = await auth.getCurrentUser();
     if (!currentUser) {
-      return sendJSON({ success: false, message: '未登录' }, 401);
+      return sendJSON({ success: false, message: '未登录', code: 'AUTH-0001' }, 401);
     }
     if (currentUser.role !== 'admin') {
-      return sendJSON({ success: false, message: '无权限退款' }, 403);
+      return sendJSON({ success: false, message: '无权限退款', code: 'ORDER-0008' }, 403);
     }
 
     var body = req.body || {};
     var orderId = body.orderId;
     if (!orderId) {
-      return sendJSON({ success: false, message: '订单 ID 不能为空' }, 400);
+      return sendJSON({ success: false, message: '订单 ID 不能为空', code: 'ORDER-0018' }, 400);
     }
 
     var order = await kv.getJSON(orderId);
     if (!order) {
-      return sendJSON({ success: false, message: '订单不存在' }, 404);
+      return sendJSON({ success: false, message: '订单不存在', code: 'ORDER-0019' }, 404);
     }
     if (!order.paid) {
-      return sendJSON({ success: false, message: '未付款订单不能退款' }, 400);
+      return sendJSON({ success: false, message: '未付款订单不能退款', code: 'ORDER-0023' }, 400);
     }
     if (order.refunded) {
-      return sendJSON({ success: false, message: '订单已退款' }, 400);
+      return sendJSON({ success: false, message: '订单已退款', code: 'ORDER-0024' }, 400);
     }
 
     order.refunded = true;
@@ -1140,9 +1143,9 @@ async function handleRefundOrder() {
     order.updatedAt = new Date().toISOString();
     kv.setJSON(orderId, order);
 
-    return sendJSON({ success: true, data: { order: order }, message: '退款成功' });
+    return sendJSON({ success: true, data: { order: order }, message: '退款成功', code: 'ORDER-0000' });
   } catch (e) {
-    return sendJSON({ success: false, message: '退款失败: ' + e.message }, 500);
+    return sendJSON({ success: false, message: '退款失败: ' + e.message, code: 'ORDER-0025' }, 500);
   }
 }
 
@@ -1151,7 +1154,7 @@ async function handleGetReport() {
   try {
     var currentUser = await auth.getCurrentUser();
     if (!currentUser) {
-      return sendJSON({ success: false, message: '未登录' }, 401);
+      return sendJSON({ success: false, message: '未登录', code: 'AUTH-0001' }, 401);
     }
 
     var body = req.body || {};
@@ -1239,9 +1242,9 @@ async function handleGetReport() {
       orders: orders
     };
 
-    return sendJSON({ success: true, data: report });
+    return sendJSON({ success: true, code: 'REPORT-0000', data: report });
   } catch (e) {
-    return sendJSON({ success: false, message: '获取报表失败: ' + e.message }, 500);
+    return sendJSON({ success: false, message: '获取报表失败: ' + e.message, code: 'REPORT-0001' }, 500);
   }
 }
 
@@ -1323,9 +1326,9 @@ async function handleGetMenu() {
   try {
     var menu = await getMenu();
     menu.sort(function(a, b) { return (b.weight || 0) - (a.weight || 0); });
-    return sendJSON({ success: true, data: { menu: menu } });
+    return sendJSON({ success: true, code: 'MENU-0000', data: { menu: menu } });
   } catch (e) {
-    return sendJSON({ success: false, message: '获取菜单失败: ' + e.message }, 500);
+    return sendJSON({ success: false, message: '获取菜单失败: ' + e.message, code: 'MENU-0002' }, 500);
   }
 }
 
@@ -1334,10 +1337,10 @@ async function handleUpdateMenu() {
   try {
     var currentUser = await auth.getCurrentUser();
     if (!currentUser) {
-      return sendJSON({ success: false, message: '未登录' }, 401);
+      return sendJSON({ success: false, message: '未登录', code: 'AUTH-0001' }, 401);
     }
     if (currentUser.role !== 'admin') {
-      return sendJSON({ success: false, message: '无权限' }, 403);
+      return sendJSON({ success: false, message: '无权限', code: 'AUTH-0002' }, 403);
     }
 
     var body = req.body || {};
@@ -1355,12 +1358,12 @@ async function handleUpdateMenu() {
       menu = normalizeMenuPayload(body);
     }
     if (!Array.isArray(menu)) {
-      return sendJSON({ success: false, message: '菜单数据格式错误' }, 400);
+      return sendJSON({ success: false, message: '菜单数据格式错误', code: 'MENU-0003' }, 400);
     }
 
     for (var i = 0; i < menu.length; i++) {
       if (!menu[i].id || !menu[i].name || menu[i].price === undefined) {
-        return sendJSON({ success: false, message: '菜单项缺少必要字段' }, 400);
+        return sendJSON({ success: false, message: '菜单项缺少必要字段', code: 'MENU-0004' }, 400);
       }
     }
 
@@ -1377,9 +1380,9 @@ async function handleUpdateMenu() {
     }
 
     kv.setJSON('settings_menu', menu);
-    return sendJSON({ success: true, message: '菜单更新成功' });
+    return sendJSON({ success: true, message: '菜单更新成功', code: 'MENU-0000' });
   } catch (e) {
-    return sendJSON({ success: false, message: '更新菜单失败: ' + e.message }, 500);
+    return sendJSON({ success: false, message: '更新菜单失败: ' + e.message, code: 'MENU-0005' }, 500);
   }
 }
 
@@ -1389,26 +1392,26 @@ async function handleUpdateMenu() {
 async function handleClearAllOrders() {
   try {
     var currentUser = await auth.getCurrentUser();
-    if (!currentUser) return sendJSON({ success: false, message: '未登录' }, 401);
-    if (currentUser.role !== 'admin') return sendJSON({ success: false, message: '无权限' }, 403);
+    if (!currentUser) return sendJSON({ success: false, message: '未登录', code: 'AUTH-0001' }, 401);
+    if (currentUser.role !== 'admin') return sendJSON({ success: false, message: '无权限', code: 'AUTH-0002' }, 403);
 
     var body = req.body || {};
     if (typeof body === 'string') {
       try { body = JSON.parse(body); } catch(e) {}
     }
     var password = body.password || '';
-    if (!password) return sendJSON({ success: false, message: '请输入管理员密码' }, 400);
+    if (!password) return sendJSON({ success: false, message: '请输入管理员密码', code: 'AUTH-0013' }, 400);
 
     // 验证密码
     var users = await readUsersWithRetry(3);
-    if (!users) return sendJSON({ success: false, message: '用户数据读取失败' }, 500);
+    if (!users) return sendJSON({ success: false, message: '用户数据读取失败', code: 'USER-0015' }, 500);
     var adminUser = null;
     for (var i = 0; i < users.length; i++) {
       if (users[i].id === currentUser.id) { adminUser = users[i]; break; }
     }
-    if (!adminUser) return sendJSON({ success: false, message: '管理员用户不存在' }, 404);
+    if (!adminUser) return sendJSON({ success: false, message: '管理员用户不存在', code: 'USER-0001' }, 404);
     if (!auth.verifyPassword(password, adminUser.passwordSalt, adminUser.passwordHash)) {
-      return sendJSON({ success: false, message: '密码错误' }, 403);
+      return sendJSON({ success: false, message: '密码错误', code: 'AUTH-0014' }, 403);
     }
 
     // 删除所有 order_ 开头的 key
@@ -1421,9 +1424,9 @@ async function handleClearAllOrders() {
       }
     }
 
-    return sendJSON({ success: true, message: '已清除 ' + deleted + ' 条订单', data: { count: deleted } });
+    return sendJSON({ success: true, code: 'ORDER-0000', message: '已清除 ' + deleted + ' 条订单', data: { count: deleted } });
   } catch (e) {
-    return sendJSON({ success: false, message: '清除订单失败: ' + e.message }, 500);
+    return sendJSON({ success: false, message: '清除订单失败: ' + e.message, code: 'ORDER-0026' }, 500);
   }
 }
 
@@ -1435,9 +1438,9 @@ async function handleResetUsersInit() {
     if (!users || users.length === 0) {
       // initDefaultUsers will be called on next request
     }
-    return sendJSON({ success: true, message: '用户数据已清除，下次请求将自动重建默认用户' });
+    return sendJSON({ success: true, code: 'USER-0000', message: '用户数据已清除，下次请求将自动重建默认用户' });
   } catch (e) {
-    return sendJSON({ success: false, message: '重置失败: ' + e.message }, 500);
+    return sendJSON({ success: false, message: '重置失败: ' + e.message, code: 'USER-0016' }, 500);
   }
 }
 
@@ -1446,7 +1449,7 @@ async function handleRestoreKV() {
   try {
     var currentUser = await auth.getCurrentUser();
     if (!currentUser || currentUser.role !== 'admin') {
-      return sendJSON({ success: false, message: '无权限' }, 403);
+      return sendJSON({ success: false, message: '无权限', code: 'AUTH-0002' }, 403);
     }
     var body = req.body || {};
     var records = body.records;
@@ -1454,7 +1457,7 @@ async function handleRestoreKV() {
       try { records = JSON.parse(records); } catch(e) {}
     }
     if (!Array.isArray(records) || records.length === 0) {
-      return sendJSON({ success: false, message: '请提供有效的 records 数组' }, 400);
+      return sendJSON({ success: false, message: '请提供有效的 records 数组', code: 'SYS-0003' }, 400);
     }
     var count = 0;
     for (var i = 0; i < records.length; i++) {
@@ -1464,12 +1467,12 @@ async function handleRestoreKV() {
         count++;
       }
     }
-    return sendJSON({ success: true, message: '已恢复 ' + count + ' 条数据' });
+    return sendJSON({ success: true, code: 'SYS-0000', message: '已恢复 ' + count + ' 条数据' });
   } catch (e) {
-    return sendJSON({ success: false, message: '恢复失败: ' + e.message }, 500);
+    return sendJSON({ success: false, message: '恢复失败: ' + e.message, code: 'SYS-0004' }, 500);
   }
 }
 
 handleRequest().catch(function(e) {
-  sendJSON({ success: false, message: '服务器错误: ' + e.message }, 500);
+  sendJSON({ success: false, message: '服务器错误: ' + e.message, code: 'SYS-9999' }, 500);
 });

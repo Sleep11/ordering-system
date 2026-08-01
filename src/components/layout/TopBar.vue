@@ -8,7 +8,7 @@
       <div class="topbar-right">
         <span class="topbar-user">{{ auth.currentUser?.name }}</span>
         <span :class="['role-badge', auth.isAdmin ? 'admin' : 'user']">{{ auth.isAdmin ? '管理员' : '用户' }}</span>
-        <span v-if="auth.isAdmin" class="version-badge">v3.0.0.17</span>
+        <span v-if="auth.isAdmin" class="version-badge">v3.0.0.18</span>
         <button class="btn btn-ghost btn-small" @click="$emit('changePassword')">修改密码</button>
         <button class="btn btn-refresh" @click="refresh">刷新</button>
         <button v-if="auth.isAdmin" class="btn btn-danger btn-small" @click="handleClearOrders" :disabled="clearLoading">
