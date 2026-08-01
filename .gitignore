@@ -1,5 +1,4 @@
-# Codex desktop metadata
-.reasonix/
+node_modules
+dist
 .env
-# 含用户密码哈希、会话和订单数据，不要提交到 Git
 bawei-kv.json

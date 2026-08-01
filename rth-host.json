@@ -1,4 +1,5 @@
 {
-	"outdir": ".",
-	"site": "bawei"
+  "build": "build",
+  "outdir": "dist",
+  "site": "bawei"
 }
