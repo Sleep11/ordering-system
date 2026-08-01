@@ -87,8 +87,9 @@ if($a === 'login') {
     $un = $_POST['username'] ?? ''; $pw = $_POST['password'] ?? '';
     if(!$un || !$pw) err('用户名和密码不能为空', 400);
     $us = getUsers(); $u = null;
+    $userCount = is_array($us) ? count($us) : 'null';
     foreach($us as $x) { if($x['name'] === $un) { $u = $x; break; } }
-    if(!$u) err('用户名或密码错误', 401);
+    if(!$u) err('用户名或密码错误(u:' . $userCount . ')', 401);
     if(!checkPw($pw, $u['passwordSalt'], $u['passwordHash'])) err('用户名或密码错误', 401);
     ok(['token'=>mkToken($u['id'], $u['role']), 'user'=>['id'=>$u['id'], 'name'=>$u['name'], 'role'=>$u['role']]]);
 }
