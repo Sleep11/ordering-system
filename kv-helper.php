@@ -1,5 +1,4 @@
 <?php
-<?php
 // ========== KV 数据库辅助函数 ==========
 
 function kv_get($key) {
@@ -32,4 +31,3 @@ function kv_get_json($key) {
 function kv_set_json($key, $data) {
     kv_set($key, json_encode($data, JSON_UNESCAPED_UNICODE));
 }
-?>

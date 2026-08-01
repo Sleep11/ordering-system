@@ -1,5 +1,4 @@
 <?php
-
 // ========== 认证模块 ==========
 
 function generate_salt() {

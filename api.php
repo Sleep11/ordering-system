@@ -1,23 +1,18 @@
 <?php
-<?php
 // ========== 多人在线点餐系统 — PHP API ==========
 require_once 'auth.php';
 require_once 'kv-helper.php';
-
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit;
 }
-
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'];
-
 try {
     switch ($action) {
         case 'login':
@@ -89,24 +84,19 @@ try {
 } catch (Exception $e) {
     send_json(['success' => false, 'message' => '服务器错误: ' . $e->getMessage()], 500);
 }
-
 function send_json($data, $code = 200) {
     http_response_code($code);
     echo json_encode($data, JSON_UNESCAPED_UNICODE);
     exit;
 }
-
 function method_not_allowed() {
     send_json(['success' => false, 'message' => '方法不允许'], 405);
 }
-
 // ========== Auth Handlers ==========
-
 function handle_login() {
     $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
     if (!$username || !$password) send_json(['success' => false, 'message' => '用户名和密码不能为空'], 400);
-
     $users = read_users();
     $user = null;
     foreach ($users as $u) {
@@ -116,18 +106,15 @@ function handle_login() {
     if (!verify_password($password, $user['passwordSalt'], $user['passwordHash'])) {
         send_json(['success' => false, 'message' => '用户名或密码错误'], 401);
     }
-
     $token = create_token($user['id'], $user['role']);
     send_json(['success' => true, 'data' => [
         'token' => $token,
         'user' => ['id' => $user['id'], 'name' => $user['name'], 'role' => $user['role']]
     ]]);
 }
-
 function handle_logout() {
     send_json(['success' => true]);
 }
-
 function handle_me() {
     $user = get_current_user();
     if (!$user) send_json(['success' => false, 'message' => '未登录'], 401);
@@ -140,14 +127,12 @@ function handle_me() {
     }
     send_json(['success' => false, 'message' => '用户不存在'], 404);
 }
-
 function handle_change_password() {
     $user = require_auth();
     $oldPw = $_POST['oldPassword'] ?? '';
     $newPw = $_POST['newPassword'] ?? '';
     if (!$oldPw || !$newPw) send_json(['success' => false, 'message' => '密码不能为空'], 400);
     if (strlen($newPw) < 6) send_json(['success' => false, 'message' => '新密码至少6位'], 400);
-
     $users = read_users();
     foreach ($users as &$u) {
         if ($u['id'] === $user['id']) {
@@ -164,9 +149,7 @@ function handle_change_password() {
     }
     send_json(['success' => false, 'message' => '用户不存在'], 404);
 }
-
 // ========== User Handlers ==========
-
 function handle_get_users() {
     require_auth();
     $users = read_users();
@@ -176,19 +159,16 @@ function handle_get_users() {
     }
     send_json(['success' => true, 'data' => ['users' => $result]]);
 }
-
 function handle_create_user() {
     require_admin();
     $username = $_POST['username'] ?? '';
     $role = $_POST['role'] ?? 'user';
     if (!$username) send_json(['success' => false, 'message' => '用户名不能为空'], 400);
     if ($role !== 'admin' && $role !== 'user') $role = 'user';
-
     $users = read_users();
     foreach ($users as $u) {
         if ($u['name'] === $username) send_json(['success' => false, 'message' => '用户名已存在'], 400);
     }
-
     $salt = generate_salt();
     $users[] = [
         'id' => ($role === 'admin' ? 'admin_' : 'user_') . substr(md5($username . time()), 0, 8),
@@ -200,7 +180,6 @@ function handle_create_user() {
     kv_set_json('users', $users);
     send_json(['success' => true, 'message' => '用户创建成功']);
 }
-
 function handle_delete_user() {
     require_admin();
     $userId = $_POST['userId'] ?? '';
@@ -211,7 +190,6 @@ function handle_delete_user() {
     kv_set_json('users', $users);
     send_json(['success' => true, 'message' => '用户已删除']);
 }
-
 function handle_reset_password() {
     require_admin();
     $userId = $_POST['userId'] ?? '';
@@ -229,9 +207,7 @@ function handle_reset_password() {
     }
     send_json(['success' => false, 'message' => '用户不存在'], 404);
 }
-
 // ========== Order Handlers ==========
-
 function handle_get_orders() {
     require_auth();
     $today = new DateTime('now', new DateTimeZone('Asia/Shanghai'));
@@ -239,7 +215,6 @@ function handle_get_orders() {
     $month = intval($today->format('m'));
     $firstDay = "$year-$month-01";
     $lastDay = date('Y-m-d', strtotime("$year-$month-01 +1 month -1 day"));
-
     // Build date set
     $dateSet = [];
     $d = new DateTime($firstDay);
@@ -248,7 +223,6 @@ function handle_get_orders() {
         $dateSet[$d->format('Y-m-d')] = true;
         $d->modify('+1 day');
     }
-
     $allKeys = kv_list_keys();
     $orders = [];
     foreach ($allKeys as $key) {
@@ -259,10 +233,8 @@ function handle_get_orders() {
             if ($order) $orders[] = $order;
         }
     }
-
     send_json(['success' => true, 'data' => ['orders' => $orders]]);
 }
-
 function handle_create_order() {
     $user = require_auth();
     $body = $_POST;
@@ -270,13 +242,11 @@ function handle_create_order() {
     $personName = $body['personName'] ?? '';
     $date = $body['date'] ?? '';
     $mealType = $body['mealType'] ?? '';
-
     if ($user['role'] !== 'admin' && $userId !== $user['id']) {
         send_json(['success' => false, 'message' => '无权限为他人订餐'], 403);
     }
     if (!$date || !$mealType) send_json(['success' => false, 'message' => '日期和餐别不能为空'], 400);
     if ($mealType !== 'lunch' && $mealType !== 'dinner') send_json(['success' => false, 'message' => '餐别无效'], 400);
-
     // Check meal type lock
     if ($user['role'] !== 'admin') {
         $lunchLocked = kv_get('settings_lunch_locked') === 'true';
@@ -284,17 +254,14 @@ function handle_create_order() {
         if ($mealType === 'lunch' && $lunchLocked) send_json(['success' => false, 'message' => '午餐点餐已被管理员锁定'], 403);
         if ($mealType === 'dinner' && $dinnerLocked) send_json(['success' => false, 'message' => '晚餐点餐已被管理员锁定'], 403);
     }
-
     // Determine price
     $price = floatval($body['price'] ?? 0);
     $itemName = '';
     $menuId = $body['menuId'] ?? '';
     $items = [];
-
     // Parse items
     $rawItems = $body['items'] ?? null;
     if (is_string($rawItems)) $rawItems = json_decode($rawItems, true);
-
     if (is_array($rawItems) && !empty($rawItems)) {
         $totalPrice = 0;
         $itemNames = [];
@@ -328,16 +295,13 @@ function handle_create_order() {
         }
         $items[] = ['menuId' => $menuId, 'name' => $itemName, 'price' => $price, 'quantity' => 1];
     }
-
     if (!$personName) {
         $users = read_users();
         foreach ($users as $u) { if ($u['id'] === $userId) { $personName = $u['name']; break; } }
     }
-
     // Check existing order
     $orderKey = 'order_' . $date . '_' . $userId . '_' . $mealType;
     $existing = kv_get_json($orderKey);
-
     // Calculate money
     $lunchSP = kv_get('settings_lunch_selfpick') === 'true';
     $dinnerSP = kv_get('settings_dinner_selfpick') === 'true';
@@ -347,7 +311,6 @@ function handle_create_order() {
     $receivable = max(0, $price - $discount);
     $actual = ($existing && $existing['paid']) ? $price : 0;
     $refund = ($existing && $existing['paid']) ? $discount : 0;
-
     $now = date('c');
     $order = [
         'id' => $orderKey,
@@ -375,7 +338,6 @@ function handle_create_order() {
     kv_set_json($orderKey, $order);
     send_json(['success' => true, 'data' => ['order' => $order], 'message' => '订单提交成功']);
 }
-
 function handle_delete_order() {
     $user = require_auth();
     $orderId = $_POST['orderId'] ?? '';
@@ -388,7 +350,6 @@ function handle_delete_order() {
     kv_delete($orderId);
     send_json(['success' => true, 'message' => '订单已删除']);
 }
-
 function handle_delete_orders_by_date() {
     require_admin();
     $date = $_POST['date'] ?? '';
@@ -403,7 +364,6 @@ function handle_delete_orders_by_date() {
     }
     send_json(['success' => true, 'message' => "已删除 $deleted 条订单"]);
 }
-
 function handle_update_payment() {
     require_admin();
     $orderId = $_POST['orderId'] ?? '';
@@ -417,7 +377,6 @@ function handle_update_payment() {
     kv_set_json($orderId, $order);
     send_json(['success' => true, 'message' => $paid ? '已标记为已付' : '已取消已付']);
 }
-
 function handle_refund_order() {
     require_admin();
     $orderId = $_POST['orderId'] ?? '';
@@ -430,9 +389,7 @@ function handle_refund_order() {
     kv_set_json($orderId, $order);
     send_json(['success' => true, 'message' => '已退款']);
 }
-
 // ========== Settings Handlers ==========
-
 function handle_get_settings() {
     require_auth();
     $lunchPrice = kv_get('settings_blind_lunch_price');
@@ -447,14 +404,12 @@ function handle_get_settings() {
         'blindDinnerPrice' => $dinnerPrice ? floatval($dinnerPrice) : 12,
     ]]]);
 }
-
 function handle_update_settings() {
     require_admin();
     $key = $_POST['key'] ?? '';
     $value = $_POST['value'] ?? '';
     if (!$key) send_json(['success' => false, 'message' => '设置项不能为空'], 400);
     kv_set($key, $value);
-
     // Apply self-pick discount to today
     if ($key === 'settings_lunch_selfpick' || $key === 'settings_dinner_selfpick') {
         $mealType = $key === 'settings_lunch_selfpick' ? 'lunch' : 'dinner';
@@ -478,14 +433,11 @@ function handle_update_settings() {
     }
     send_json(['success' => true, 'message' => '设置已更新']);
 }
-
 // ========== Report Handler ==========
-
 function handle_get_report() {
     require_auth();
     $type = $_POST['type'] ?? $_GET['type'] ?? 'week';
     $offset = intval($_POST['offset'] ?? $_GET['offset'] ?? 0);
-
     if ($type === 'week') {
         $now = new DateTime('now', new DateTimeZone('Asia/Shanghai'));
         $dayOfWeek = intval($now->format('N')) - 1; // Mon=0
@@ -506,10 +458,8 @@ function handle_get_report() {
         $sunday = clone $monday;
         $sunday->modify('+1 month -1 day');
     }
-
     $dateFrom = $monday->format('Y-m-d');
     $dateTo = $sunday->format('Y-m-d');
-
     $keys = kv_list_keys();
     $orders = [];
     foreach ($keys as $k) {
@@ -522,13 +472,11 @@ function handle_get_report() {
             if ($order) $orders[] = $order;
         }
     }
-
     $totalOrders = count($orders);
     $paidOrders = 0;
     $totalAmount = 0;
     $paidAmount = 0;
     $personStats = [];
-
     foreach ($orders as $o) {
         $receivable = floatval($o['receivable'] ?? max(0, floatval($o['price']) - floatval($o['discount'] ?? 0)));
         $totalAmount += $receivable;
@@ -541,7 +489,6 @@ function handle_get_report() {
         $personStats[$name]['count']++;
         $personStats[$name]['amount'] += $receivable;
     }
-
     send_json(['success' => true, 'data' => [
         'dateFrom' => $dateFrom, 'dateTo' => $dateTo,
         'totalOrders' => $totalOrders, 'paidOrders' => $paidOrders,
@@ -549,9 +496,7 @@ function handle_get_report() {
         'personStats' => array_values($personStats)
     ]]);
 }
-
 // ========== Menu Handlers ==========
-
 function get_menu() {
     $menu = kv_get_json('settings_menu');
     if (!is_array($menu) || empty($menu)) {
@@ -566,7 +511,6 @@ function get_menu() {
     }
     return $menu;
 }
-
 function get_menu_item($menuId) {
     $menu = get_menu();
     foreach ($menu as $m) {
@@ -574,30 +518,25 @@ function get_menu_item($menuId) {
     }
     return null;
 }
-
 function handle_get_menu() {
     require_auth();
     $menu = get_menu();
     usort($menu, function($a, $b) { return ($b['weight'] ?? 0) - ($a['weight'] ?? 0); });
     send_json(['success' => true, 'data' => ['menu' => $menu]]);
 }
-
 function handle_update_menu() {
     require_admin();
     $menu = $_POST['menu'] ?? '';
     $menuJson = $_POST['menuJson'] ?? '';
-
     if (is_string($menu)) $menu = json_decode($menu, true);
     if (!is_array($menu) && is_string($menuJson)) $menu = json_decode($menuJson, true);
     if (!is_array($menu)) send_json(['success' => false, 'message' => '菜单数据格式错误'], 400);
-
     // Validate
     foreach ($menu as $m) {
         if (empty($m['id']) || empty($m['name']) || !isset($m['price'])) {
             send_json(['success' => false, 'message' => '菜单项缺少必要字段'], 400);
         }
     }
-
     // Preserve notes from current menu
     $current = get_menu();
     foreach ($menu as &$m) {
@@ -610,18 +549,14 @@ function handle_update_menu() {
             }
         }
     }
-
     kv_set_json('settings_menu', $menu);
     send_json(['success' => true, 'message' => '菜单更新成功']);
 }
-
 // ========== Clear All Orders ==========
-
 function handle_clear_all_orders() {
     $admin = require_admin();
     $password = $_POST['password'] ?? '';
     if (!$password) send_json(['success' => false, 'message' => '请输入管理员密码'], 400);
-
     $users = read_users();
     foreach ($users as $u) {
         if ($u['id'] === $admin['id']) {
@@ -631,7 +566,6 @@ function handle_clear_all_orders() {
             break;
         }
     }
-
     $keys = kv_list_keys();
     $deleted = 0;
     foreach ($keys as $k) {
@@ -642,18 +576,14 @@ function handle_clear_all_orders() {
     }
     send_json(['success' => true, 'message' => "已清除 $deleted 条订单", 'data' => ['count' => $deleted]]);
 }
-
 // ========== Restore KV ==========
-
 function handle_restore_kv() {
     require_admin();
     $data = $_POST['data'] ?? '';
     $overwrite = ($_POST['overwrite'] ?? '') === 'true';
     if (!$data) send_json(['success' => false, 'message' => '数据不能为空'], 400);
-
     $kv = json_decode($data, true);
     if (!is_array($kv)) send_json(['success' => false, 'message' => '数据格式错误'], 400);
-
     $restored = 0;
     foreach ($kv as $key => $value) {
         if (!$overwrite && kv_get($key)) continue;
