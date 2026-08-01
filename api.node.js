@@ -1407,7 +1407,9 @@ async function handleClearAllOrders() {
       if (users[i].id === currentUser.id) { adminUser = users[i]; break; }
     }
     if (!adminUser) return sendJSON({ success: false, message: '管理员用户不存在' }, 404);
-    if (adminUser.password !== password) return sendJSON({ success: false, message: '密码错误' }, 403);
+    if (!auth.verifyPassword(password, adminUser.passwordSalt, adminUser.passwordHash)) {
+      return sendJSON({ success: false, message: '密码错误' }, 403);
+    }
 
     // 删除所有 order_ 开头的 key
     var allKeys = await kv.listKeys();

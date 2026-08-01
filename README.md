@@ -282,7 +282,7 @@ var lunchSelfPick = false;     // 午餐自取减免
 var dinnerSelfPick = false;    // 晚餐自取减免
 var blindLunchPrice = 11;      // 午餐盲盒价
 var blindDinnerPrice = 12;     // 晚餐盲盒价
-var APP_VERSION = '2.5.1.8';   // 版本号（四位）
+var APP_VERSION = '2.5.1.9';   // 版本号（四位）
 ```
 
 ### 数据流
@@ -658,6 +658,11 @@ Ctrl+Shift+R 强制刷新。如果仍不行，检查顶部栏版本号是否最�
 ---
 
 ## 变更记录
+
+### v2.5.1.9 (2026-08-01)
+- 美化：侧边栏系统设置去除表情符号，标签加粗，单行紧凑排列
+- 修复：handleClearAllOrders 密码验证改用 auth.verifyPassword，不再明文比较
+- 优化：侧边栏 CSS 精简，移除冗余设置项描述文字
 
 ### v2.5.1.8 (2026-08-01)
 - 修复：恢复被误删的 .money-item .money-label CSS 桌面端样式，价格列正常显示

@@ -633,8 +633,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   color: var(--muted-light);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  padding: 12px 10px 4px;
-  margin-top: 4px;
+  padding: 10px 10px 2px;
+  margin-top: 2px;
   border-top: 1px solid var(--line-light);
 }
 
@@ -642,35 +642,32 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: var(--radius-sm);
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
 }
 
 .sidebar-setting:hover {
   background: var(--bg-subtle);
 }
 
-.sidebar-setting-info {
-  flex: 1;
-  min-width: 0;
-}
-
 .sidebar-price-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   margin-left: auto;
   flex-shrink: 0;
 }
 
 .sidebar-price-row input {
-  width: 52px;
-  min-height: 28px;
-  padding: 2px 6px;
+  width: 48px;
+  min-height: 26px;
+  padding: 2px 4px;
   border: 1px solid var(--line);
-  border-radius: 6px;
-  font-size: 13px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 600;
   text-align: center;
   background: var(--panel);
 }
@@ -682,22 +679,19 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .sidebar-price-row .price-unit {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--muted);
+  font-weight: 600;
 }
 
 .sidebar-setting-label {
-  display: block;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text);
-}
-
-.sidebar-setting-desc {
-  display: block;
-  font-size: 11px;
-  color: var(--muted);
-  margin-top: 2px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* 滑动开关（侧边栏） */
