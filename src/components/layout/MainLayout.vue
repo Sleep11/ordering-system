@@ -42,7 +42,12 @@ function showToast(msg, type, duration) {
   const tc = document.getElementById('toastContainer')
   const toast = document.createElement('div')
   toast.className = 'toast toast-enter toast-' + (type || 'info')
-  toast.innerHTML = '<span class="toast-icon"></span><span class="toast-msg">' + msg + '</span>'
+  const icon = document.createElement('span')
+  icon.className = 'toast-icon'
+  const text = document.createElement('span')
+  text.className = 'toast-msg'
+  text.textContent = msg
+  toast.append(icon, text)
   toast.onclick = () => toast.remove()
   tc.appendChild(toast)
   setTimeout(() => {

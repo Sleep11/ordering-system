@@ -61,12 +61,14 @@ import { useAuthStore } from '@/stores/auth'
 import { useOrdersStore } from '@/stores/orders'
 import { useDishesStore } from '@/stores/dishes'
 import { useUsersStore } from '@/stores/users'
-import { getChinaDate, getChinaHourMin } from '@/utils/china-date'
+import { useSettingsStore } from '@/stores/settings'
+import { getChinaDate, getChinaDateRange, getChinaHourMin } from '@/utils/china-date'
 
 const auth = useAuthStore()
 const orders = useOrdersStore()
 const dishes = useDishesStore()
 const users = useUsersStore()
+const settings = useSettingsStore()
 const toast = inject('toast')
 
 const orderDate = ref('')
@@ -84,15 +86,43 @@ const maxDate = ref('')
 const singlePriceText = computed(() => {
   if(!singleDishId.value) return '选择餐品后显示价格'
   const m = dishes.getById(singleDishId.value)
-  return m ? '价格：¥'+(m.price*singleQty.value)+(singleQty.value>1?'（'+singleQty.value+'份）':'') : ''
+  return m ? '价格：¥'+(dishPrice(m)*singleQty.value)+(singleQty.value>1?'（'+singleQty.value+'份）':'') : ''
 })
+
+function dishPrice(m) {
+  if (m?.name !== '盲盒') return m?.price || 0
+  return mealType.value === 'lunch' ? settings.blindLunchPrice : settings.blindDinnerPrice
+}
+
+function buildOrderPayload(m, qty, extra = {}) {
+  const price = dishPrice(m)
+  if (m.name === '盲盒') {
+    return {
+      ...extra,
+      date: orderDate.value,
+      mealType: mealType.value,
+      itemType: 'custom',
+      itemName: '盲盒',
+      price,
+      items: [{ name: '盲盒', price, quantity: qty }]
+    }
+  }
+  return {
+    ...extra,
+    date: orderDate.value,
+    mealType: mealType.value,
+    itemType: 'menu',
+    menuId: m.id,
+    items: [{ menuId: m.id, name: m.name, price: m.price, quantity: qty }]
+  }
+}
 
 function priceOf(uid) {
   const did = batchDish[uid]
   if(!did) return '-'
   const m = dishes.getById(did)
   if(!m) return '-'
-  return '¥'+(m.price*(batchQty[uid]||1))
+  return '¥'+(dishPrice(m)*(batchQty[uid]||1))
 }
 
 function onDishPick(uid) {}
@@ -107,13 +137,14 @@ async function handleSubmit() {
       const did=batchDish[uid]; if(!did) continue
       const u=users.allUsers.find(x=>x.id===uid); const m=dishes.getById(did)
       const qty=batchQty[uid]||1; if(!u||!m) continue
-      await orders.createOrder({userId:uid,personName:u.name,date:orderDate.value,mealType:mealType.value,itemType:'menu',menuId:did,items:[{menuId:did,name:m.name,price:m.price,quantity:qty}]})
+      await orders.createOrder(buildOrderPayload(m, qty, { userId: uid, personName: u.name }))
     }
     toast.show('批量订单提交成功','success'); await orders.refreshNow(); submitting.value=false
   }else{
     if(!singleDishId.value){toast.show('请选择餐品','info');return}
     submitting.value=true; const m=dishes.getById(singleDishId.value)
-    const r=await orders.createOrder({date:orderDate.value,mealType:mealType.value,itemType:'menu',menuId:singleDishId.value,items:[{menuId:singleDishId.value,name:m?.name||'',price:m?.price||0,quantity:singleQty.value}]})
+    if(!m){submitting.value=false;toast.show('餐品不存在','error');return}
+    const r=await orders.createOrder(buildOrderPayload(m, singleQty.value))
     submitting.value=false; toast.show(r.success?'订单提交成功':(r.message||'提交失败'),r.success?'success':'error')
     if(r.success) await orders.refreshNow()
   }
@@ -126,7 +157,7 @@ onMounted(async () => {
   const { totalMin } = getChinaHourMin()
   if(totalMin>=8*60&&totalMin<11*60+30) mealType.value='lunch'
   else if(totalMin>=11*60+30&&totalMin<20*60+30) mealType.value='dinner'
-  else { mealType.value='lunch'; const n=new Date(); orderDate.value=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate()+1)).toISOString().split('T')[0] }
+  else { mealType.value='lunch'; orderDate.value = totalMin >= 20*60+30 ? getChinaDateRange(1) : getChinaDate() }
   const now=new Date(); const chinaTs=now.getTime()+8*3600*1000
   minDate.value=new Date(chinaTs-30*86400000).toISOString().split('T')[0]
   maxDate.value=new Date(chinaTs+30*86400000).toISOString().split('T')[0]

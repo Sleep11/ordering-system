@@ -11,11 +11,12 @@ function getChinaDate() {
 
 // 获取最近七天的日期列表
 // 获取当前月份的日期范围
-function getMonthDateRange() {
+function getMonthDateRange(offsetMonth) {
+  offsetMonth = offsetMonth || 0;
   var today = new Date();
   var chinaTime = new Date(today.getTime() + 8 * 60 * 60 * 1000);
   var year = chinaTime.getUTCFullYear();
-  var month = chinaTime.getUTCMonth();
+  var month = chinaTime.getUTCMonth() + offsetMonth;
   var firstDay = new Date(Date.UTC(year, month, 1));
   var lastDay = new Date(Date.UTC(year, month + 1, 0));
   return {
@@ -379,7 +380,7 @@ async function handleUpdateSettings() {
     if (key === 'settings_blind_lunch_price' || key === 'settings_blind_dinner_price') {
       var priceValue = parseFloat(value);
       if (isNaN(priceValue) || priceValue < 0.5 || priceValue > 200) {
-        return sendJSON({ success: false, message: '价格必须在 0.5 ~ 200 之间' }, 400);
+        return sendJSON({ success: false, message: '价格必须在 0.5 ~ 200 之间', code: 'SETTING-0002' }, 400);
       }
       value = String(Math.round(priceValue * 100) / 100);
     }
@@ -423,7 +424,7 @@ async function handleLogin() {
     // 检查登录锁定
     var lockCheck = await auth.checkLoginAttempts(user.id);
     if (lockCheck.locked) {
-      return sendJSON({ success: false, message: '登录尝试次数过多，请 ' + lockCheck.remainingSeconds + ' 秒后重试' }, 429);
+      return sendJSON({ success: false, message: '登录尝试次数过多，请 ' + lockCheck.remainingSeconds + ' 秒后重试', code: 'AUTH-0005' }, 429);
     }
     
     // 验证密码
@@ -606,7 +607,7 @@ async function handleCreateUser() {
     kv.setJSON('users', users);
     
     return sendJSON({
-      success: true, code: 'AUTH-0000',
+      success: true, code: 'USER-0000',
       data: { user: { id: userId, name: username, role: role } },
       message: '用户添加成功，默认密码为 123456'
     });
@@ -1156,9 +1157,13 @@ async function handleGetReport() {
     if (!currentUser) {
       return sendJSON({ success: false, message: '未登录', code: 'AUTH-0001' }, 401);
     }
+    if (currentUser.role !== 'admin') {
+      return sendJSON({ success: false, message: '无权限', code: 'AUTH-0002' }, 403);
+    }
 
     var body = req.body || {};
     var type = body.type || 'week'; // week | month
+    var offset = parseInt(body.offset) || 0;
     var fromDate = body.from;
     var toDate = body.to;
 
@@ -1167,9 +1172,9 @@ async function handleGetReport() {
       range = { from: fromDate, to: toDate };
       type = 'custom';
     } else if (type === 'month') {
-      range = getMonthDateRange();
+      range = getMonthDateRange(offset);
     } else {
-      range = getWeekDateRange(0);
+      range = getWeekDateRange(offset);
     }
 
     var allKeys = await kv.listKeys();

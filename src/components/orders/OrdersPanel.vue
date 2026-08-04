@@ -12,7 +12,7 @@
     <div class="panel__body collapsible-body" >
       <div v-if="!orders.sortedDates.length" class="empty-state">暂无订单</div>
       <div v-for="date in orders.sortedDates" :key="date" class="date-group">
-        <div :class="['date-header', { today: date === today, collapsed: !expandedDates[date] }]" @click="toggleDate(date)">
+        <div :class="['date-header', { today: date === today, collapsed: expandedDates[date] === false }]" @click="toggleDate(date)">
           <div class="date-title">
             <span class="collapse-indicator">▶</span>
             <span>{{ formatDate(date) }} {{ getDayOfWeek(date) }}</span>
@@ -25,7 +25,7 @@
             <span>总额: {{ formatPrice(getDateTotal(date)) }}</span>
           </div>
         </div>
-        <div v-show="expandedDates[date]" class="orders-list">
+        <div v-show="expandedDates[date] !== false" class="orders-list">
           <!-- Lunch group -->
           <div class="meal-group meal-group--lunch">
             <div class="meal-group__header">
@@ -138,7 +138,7 @@ for (const date of orders.sortedDates.value) {
 }
 
 function toggleDate(date) {
-  expandedDates[date] = !expandedDates[date]
+  expandedDates[date] = expandedDates[date] === false
 }
 
 function getDateOrders(date) {

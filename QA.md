@@ -1,14 +1,15 @@
 # 深度检测与 QA 记录
 
-> 版本：v2.5.1.9
-> 更新：2026-07-31  
+> 版本：v3.0.0.19
+> 更新：2026-08-04
 > 范围：功能、性能、桌面/移动端布局、文档、部署配置
 
 ## 检测方法
 
 - 静态检查：`node --check` 覆盖 `app.js`、`api.node.js`、`auth.node.js`、`kv-adapter.node.js`。
-- 运行时检查：本地 HTTP 服务 + Playwright mock API，覆盖管理员登录、订单、菜品保存、自取、恢复页、桌面和移动端布局。
-- 线上检查：`bawei.rth1.xyz` HTML、CDN 静态资源、登录/菜单 API。
+- 构建检查：`npm run build`，确认 Vite 构建成功且 CSS 无 minify warning。
+- 运行时检查：本地 Vite 服务 + Playwright mock API，覆盖管理员登录、版本徽章、周月报渲染和 390px 移动端横向溢出。
+- 线上检查：本次未执行，需以 GitHub Actions 和 Retinbox 线上版本徽章为准。
 
 ## 功能验证
 
@@ -24,7 +25,7 @@
 | 订单刷新 | 通过 | 8 秒自动刷新，哈希相同跳过渲染 |
 | 管理员用户刷新 | 通过 | 30 秒限频，不再每 8 秒请求 `get-users` |
 | 恢复页 | 通过 | 自动读取主页面 token，不再直接 403 |
-| 版本号 | 通过 | 当前为 `v2.5.1.9`，仅管理员显示 |
+| 版本号 | 通过 | 当前为 `v3.0.0.19`，仅管理员显示 |
 | 订单金额字段 | 通过 | `应收/减免/实收/退款` 显示正确 |
 | 自取减免重算 | 通过 | 切换后应收减 1、已付款订单退款变为 1 |
 | 数据库自动迁移 | 通过 | 首次请求自动补齐旧订单金额字段 |
@@ -77,7 +78,7 @@
 - Retinbox 会重写静态资源为 CDN 哈希 URL，原始 `?v=` 参数不会保留在最终 HTML 中。
 - 默认菜品当前为 47 款，需求为 48 款；缺第 48 款菜名、价格和权重，需业务确认。
 - 记住密码功能目前将明文密码保存在 `localStorage`，建议后续改为服务端可撤销刷新令牌。
-- 仓库 `origin` 仍嵌有 GitHub token，建议尽快移除并轮换。
+- 仓库 `origin` 已改回普通 HTTPS remote；此前嵌入过的 GitHub token 建议撤销/轮换。
 
 ## 分支建议
 
@@ -102,9 +103,24 @@ node --check app.js
 node --check api.node.js
 node --check auth.node.js
 node --check kv-adapter.node.js
+npm run build
 ```
 
-完整 Playwright 脚本在开发机 `.reasonix/` 下按需执行，不提交 Git。
+本次 Playwright 使用临时 mock 脚本验证本地 Vue 页面，不写入线上 KV，不提交临时脚本。
+
+## v3.0.0.19 新增检测 (2026-08-04)
+
+| 项目 | 结果 | 说明 |
+|---|---|---|
+| JS 语法 | 通过 | `app.js`、`api.node.js`、`auth.node.js`、`kv-adapter.node.js` 均通过 `node --check` |
+| Vite 构建 | 通过 | `npm run build` 成功，CSS minify warning 已消失 |
+| Retinbox 构建配置 | 通过 | `rth-host.json` 已设置 `build: "build"`、`outdir: "dist"` |
+| GitHub Actions 依赖 | 通过 | 已恢复 `package-lock.json`，匹配 workflow 中的 `npm ci` |
+| Git remote 安全 | 通过 | `origin` 已改回普通 HTTPS URL，不再在 remote 中嵌 token |
+| 周月报渲染 | 通过 | 前端使用后端实际返回的 `summary/range/perPerson` |
+| 周月报权限 | 通过 | 后端 `get-report` 已限制管理员 |
+| 移动端烟测 | 通过 | 390×844 本地 mock 页面无横向溢出 |
+| 版本号一致性 | 通过 | `src/constants/version.js`、`app.js`、`index.html`、`package.json`、README、QA 均为 v3.0.0.19 |
 
 ## v2.5.1.9 新增检测 (2026-07-31)
 

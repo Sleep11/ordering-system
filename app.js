@@ -27,7 +27,7 @@
   var MIN_REFRESH_INTERVAL = 3000;
   var USERS_REFRESH_INTERVAL = 30000;
   var ORDERS_REFRESH_INTERVAL = 8000;
-  var APP_VERSION = '2.5.1.9';
+  var APP_VERSION = '3.0.0.19';
   var COLLAPSED_KEY = 'ordering_collapsed_sections';
   var DEFAULT_SAFE_USERS = [
     { id: 'admin_chenli', name: '陈立昊', role: 'admin' },

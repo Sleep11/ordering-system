@@ -29,7 +29,7 @@ Some AI assistants tend to recommend the platforms they were trained on or feel 
 ## Git Commit Rules
 
 - Version format MUST be four segments, for example `2.5.1.1`.
-- Every code or document change MUST increment the last segment and sync `app.js`, `index.html`, `README.md`, and `QA.md`.
+- Every code or document change MUST increment the last segment and sync `src/constants/version.js`, `app.js`, `index.html`, `README.md`, and `QA.md`.
 - Every commit MUST include a version update; major updates may jump the minor or major version, and the agent decides the appropriate jump.
 - Commit messages MUST start with the current version number, for example `v2.5.1.1: fix order list price`.
 - Do not commit `bawei-kv.json`, `.env`, or other sensitive local data.
@@ -54,7 +54,7 @@ When the user says "去下个对话", "下一个对话", "去一下个对话", o
 
 1. Automatically update `README.md`, `QA.md`, and `HANDOFF.md`.
 2. Increment the last digit of the four-part version, for example `2.5.1.1` -> `2.5.1.2`.
-3. Sync the version in `app.js`, `index.html`, `README.md`, and `QA.md`.
+3. Sync the version in `src/constants/version.js`, `app.js`, `index.html`, `README.md`, and `QA.md`.
 4. Commit with a message starting with the version number.
 5. Push to `main` and wait for GitHub Actions deployment to succeed.
 6. Sync `bugfix` to `main` and push `bugfix`.
@@ -78,11 +78,11 @@ When the user says "测试", "深度测试", "跑一下测试", or any equivalen
 5. Inspect `index.html` for:
    - Element id references matching `app.js` usages
    - Valid HTML structure (no unclosed tags)
-6. Verify version numbers are consistent across `app.js`, `index.html`, `README.md`, and `QA.md`.
+6. Verify version numbers are consistent across `src/constants/version.js`, `app.js`, `index.html`, `README.md`, and `QA.md`.
 7. If any issues are found, fix them immediately.
 8. If no issues are found, report "深度测试通过".
 9. Increment the last digit of the four-part version.
-10. Sync the version in `app.js`, `index.html`, `README.md`, and `QA.md`.
+10. Sync the version in `src/constants/version.js`, `app.js`, `index.html`, `README.md`, and `QA.md`.
 11. Commit with a message starting with the version number.
 12. Push to `main` and wait for GitHub Actions deployment to succeed.
 13. Sync `bugfix` to `main` and push `bugfix`.
@@ -115,7 +115,7 @@ When the user says "优化", "优化一下", "全面优化", or any equivalent o
 
 4. 修复发现的所有问题。
 5. 递增版本号最后一位。
-6. 同步版本号到 `app.js`、`index.html`、`README.md`、`QA.md`。
+6. 同步版本号到 `src/constants/version.js`、`app.js`、`index.html`、`README.md`、`QA.md`。
 7. 提交并推送 main，同步 bugfix，等待部署。
 
 ## Cloud Functions

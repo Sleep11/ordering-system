@@ -38,15 +38,13 @@ export const useDishesStore = defineStore('dishes', () => {
     return dishItems.value.map(m => `${m.id}|${m.name}|${m.price}|${m.weight || 0}`).join('~')
   }
 
-  async function saveFromRows(rows) {
-    const updated = []
-    for (const row of rows) {
-      const id = row.dataset.id
-      const name = row.querySelector('.dish-item-name')?.value?.trim() || '未命名'
-      const price = parseInt(row.querySelector('.dish-item-price')?.value) || 0
-      const weight = parseInt(row.querySelector('.dish-item-weight')?.value) || 0
-      updated.push({ id, name, price: Math.max(0, price), weight })
-    }
+  async function saveCurrent() {
+    const updated = dishItems.value.map((m) => ({
+      id: m.id,
+      name: (m.name || '').trim() || '未命名',
+      price: Math.max(0, parseInt(m.price) || 0),
+      weight: parseInt(m.weight) || 0
+    }))
     if (!updated.length) return { success: false, message: '菜品数据为空' }
     updated.sort((a, b) => b.weight - a.weight)
 
@@ -74,6 +72,6 @@ export const useDishesStore = defineStore('dishes', () => {
 
   return {
     dishItems, loaded, load, getById, getBlindBoxId,
-    buildMenuOptions, saveFromRows, addNew, removeById
+    buildMenuOptions, saveCurrent, addNew, removeById
   }
 })

@@ -3,7 +3,6 @@ dist
 .env
 bawei-kv.json
 .reasonix
-package-lock.json
 *.txt
 test_*.php
 public/test*.php

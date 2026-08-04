@@ -35,8 +35,7 @@ const toast = inject('toast')
 const collapsed = ref(false)
 
 async function saveAll() {
-  const rows = document.querySelectorAll('.dish-item-row')
-  const result = await dishes.saveFromRows(rows)
+  const result = await dishes.saveCurrent()
   if (result.success) {
     toast.show('菜品已保存', 'success')
   } else {

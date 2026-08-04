@@ -1,7 +1,8 @@
 # 多人在线点餐系统 — 项目文档
 
 > 基于 Retinbox (热铁盒) Web Hosting 的全栈点餐系统。
-> 支持多用户、48 款菜品菜单（当前默认数据 47 款，待确认补齐）、午餐/晚餐分时段管理、自取减免、周月报统计。
+> 当前版本：v3.0.0.19。
+> 支持多用户、47 款默认菜品菜单、午餐/晚餐分时段管理、自取减免、周月报统计。
 > GitHub push 自动部署，零运维。
 
 ---
@@ -172,8 +173,8 @@
 ## 系统架构
 
 ```
-浏览器 (SPA)
-  index.html + styles.css + app.js
+浏览器 (Vue SPA)
+  index.html + src/main.js + src/App.vue + src/components/*
     |
     | HTTP POST /api.node.js
     v
@@ -186,7 +187,7 @@ Retinbox Node.js 云函数
 Retinbox KV 数据库 (database: ordering)
 ```
 
-- **前端**：原生 HTML/CSS/JS，零框架依赖，~2186 行
+- **前端**：Vue 3 + Pinia + Vue Router + Vite，hash 路由
 - **后端**：Retinbox Node.js 云函数，~1050 行
 - **数据库**：Retinbox KV 存储，key-value 结构
 - **部署**：GitHub Actions → Deno CLI → Retinbox，全自动
@@ -197,9 +198,11 @@ Retinbox KV 数据库 (database: ordering)
 
 | 文件 | 说明 |
 |------|------|
-| `index.html` | 主页面：登录页 + 主页面 (侧边栏/点餐/统计/订单/报表/菜品管理/用户管理) |
-| `app.js` | 前端核心 (~2186 行)：状态管理、API 调用、UI 渲染、事件处理 |
-| `styles.css` | 完整样式系统 (~2000 行)：设计令牌、布局、组件、动效、响应式、移动端 |
+| `index.html` | Vite HTML 入口，挂载 `#app` |
+| `src/` | Vue 3 前端源码：组件、Pinia store、路由、工具函数和样式 |
+| `src/constants/version.js` | 当前前端版本号，顶部栏版本徽章读取这里 |
+| `src/styles/main.css` | 完整样式系统：设计令牌、布局、组件、响应式、移动端 |
+| `app.js` / `styles.css` | 历史原生版本入口，当前 Vite 构建不再使用；版本号仍按规则同步 |
 | `api.node.js` | 后端 API (~1050 行)：15 个 action 路由 + 认证/订单/用户/菜单/报表 |
 | `auth.node.js` | 认证模块：FNV-1a 密码哈希 + Salt + 24h Token 会话 |
 | `kv-adapter.node.js` | 数据库抽象层：封装 Retinbox KV API |
@@ -381,41 +384,38 @@ Retinbox KV 数据库 (database: ordering)
 
 ## 前端架构
 
-### 状态变量
+当前实际运行入口是 Vue/Vite：`src/main.js` → `src/App.vue` → `src/router/index.js`。旧的 `app.js` 不参与 Vite 构建，只保留为历史兼容文件。
+
+### 核心状态
 
 ```js
-var token = null;              // 登录令牌
-var currentUser = null;        // 当前用户 {id, name, role}
-var allUsers = [];             // 用户列表
-var allOrders = [];            // 订单列表
-var dishItems = [];            // 菜品列表
-var settings = {};             // 系统设置
-var lunchSelfPick = false;     // 午餐自取减免
-var dinnerSelfPick = false;    // 晚餐自取减免
-var blindLunchPrice = 11;      // 午餐盲盒价
-var blindDinnerPrice = 12;     // 晚餐盲盒价
-var APP_VERSION = '2.5.1.9';   // 版本号（四位）
+useAuthStore        // 登录令牌、当前用户、管理员判断
+useOrdersStore      // 订单列表、8 秒自动刷新、付款/退款/删除
+useUsersStore       // 用户列表，30 秒限频加载
+useDishesStore      // 菜品列表、菜品保存
+useSettingsStore    // 锁定、自取减免、盲盒价格
+APP_VERSION         // src/constants/version.js = '3.0.0.19'
 ```
 
 ### 数据流
 
 ```
-登录 → showMainPage()
-  ├── loadSettings()    → settings, 自取状态, 盲盒价格
-  ├── loadDishes()      → dishItems, 填充菜单下拉框
-  ├── loadAllData()     → get-orders → allOrders → renderAll()
-  │     ├── updateTodayStats()  → 今日统计 (含自取减免)
-  │     └── renderOrders()     → 本月订单 (午/晚餐分组)
-  └── loadReport('week') → 本周报表 (仅管理员)
+LoginPage → auth.login()
+  └── MainLayout.onMounted()
+      ├── settings.load() → 自取状态、锁定、盲盒价格
+      ├── dishes.load()   → 菜品下拉框
+      ├── orders.load()   → 今日统计 / 本月订单
+      ├── orders.startAutoRefresh(8000)
+      └── users.load()    → 仅管理员用户管理
 ```
 
 ### 自动刷新
 
 | 机制 | 说明 |
 |------|------|
-| 8 秒定时 | `ORDERS_REFRESH_INTERVAL = 8000` |
+| 8 秒定时 | `orders.startAutoRefresh(8000)` |
 | 数据哈希 | `JSON.stringify` 对比，未变化跳过 DOM 渲染 |
-| 确认保护 | 确认对话框打开时自动恢复状态 |
+| 管理员用户限频 | `useUsersStore.load()` 30 秒内不重复请求 |
 | 滚动保持 | `mainContent.scrollTop` 保存/恢复 |
 | 提交阻塞 | `isBatchSubmitting=true` 时暂停 |
 | 菜单缓存 | `menuOptsCache` 避免重复构建 option HTML |
@@ -549,13 +549,13 @@ deno -Ar https://host.retiehe.com/cli watch
 **rth-host.json**:
 ```json
 {
-  "build": "",
-  "outdir": ".",
+  "build": "build",
+  "outdir": "dist",
   "site": "bawei"
 }
 ```
-- `build`: 留空 (纯静态项目无需构建)
-- `outdir`: `"."` 部署根目录全部文件
+- `build`: 执行 Vite 构建脚本
+- `outdir`: `"dist"` 上传构建产物
 - `site`: Retinbox 站点名 (免费域名仅填子域名)
 
 **package.json**:
@@ -590,10 +590,10 @@ deno -Ar https://host.retiehe.com/cli watch
 4. Push 到 main 即触发
 
 ### 版本号管理
-- `index.html` 中 CSS/JS 引用带 `?v=版本号` 参数
-- `app.js` 中 `APP_VERSION` 常量
+- `src/constants/version.js` 中 `APP_VERSION` 常量
+- `index.html` 中 `app-version` meta
 - 版本号必须为四位，例如 `2.5.1.1`
-- 每次修改代码或文档后必须递增最后一位，并同步更新 `app.js`、`index.html`、README、QA
+- 每次修改代码或文档后必须递增最后一位，并同步更新 `src/constants/version.js`、`app.js`、`index.html`、README、QA
 - 每次提交都必须包含版本更新；大版本更新可以跳号，由维护者决定跳法
 - 部署后查看顶部栏徽章确认版本
 
@@ -646,11 +646,9 @@ deno -Ar https://host.retiehe.com/cli watch
 今日统计标题右侧药丸按钮 → 点击切换 → 当天对应餐别每单自动 -¥1。
 
 ### 调整刷新频率
-修改 `app.js` 顶部常量：
+修改 `src/stores/orders.js` 中的自动刷新参数：
 ```js
-var ORDERS_REFRESH_INTERVAL = 8000;   // 默认 8 秒
-var MIN_REFRESH_INTERVAL = 3000;       // 最小间隔 3 秒
-var USERS_REFRESH_INTERVAL = 30000;    // 管理员用户列表刷新间隔
+orders.startAutoRefresh(8000)
 ```
 
 ---
@@ -688,7 +686,7 @@ node --check kv-adapter.node.js
 - Retinbox 会把静态资源 URL 重写为 CDN 哈希地址，原始 `?v=版本号` 参数不会出现在最终 HTML；版本号仍通过顶部徽章和 CDN URL 变化体现。
 - “记住密码”目前把明文密码保存在浏览器 `localStorage`，存在本机泄露风险；如要彻底改善，需要改为服务端可撤销的刷新令牌方案。
 - `bawei-kv.json` 含用户密码哈希、会话和订单数据，已加入 `.gitignore`，不应提交到 Git。
-- 仓库 `origin` 当前仍嵌入 GitHub token，建议尽快改回普通 HTTPS remote，并撤销该 token。
+- 仓库 `origin` 已改回普通 HTTPS remote；此前嵌入过的 GitHub token 建议在 GitHub 里撤销/轮换。
 
 ---
 
@@ -698,20 +696,20 @@ node --check kv-adapter.node.js
 - 提交信息必须以当前版本号开头，例如 `v2.5.1.1: fix order list price`。
 - 版本号必须为四位，每次变更递增最后一位。
 - 每次提交都必须更新版本号；重大更新可以跳号，由维护者决定。
-- 修改代码前先同步 `app.js`、`index.html`、README、QA 中的版本号。
+- 修改代码前先同步 `src/constants/version.js`、`app.js`、`index.html`、README、QA 中的版本号。
 - 禁止提交 `.env`、`bawei-kv.json` 等敏感文件。
 
 ### 下个对话规则
 - 用户说“去下个对话 / 下一个对话 / 去一下个对话”时，自动更新 README、QA、HANDOFF。
-- 自动递增版本号最后一位并同步到 `app.js`、`index.html`、README、QA。
+- 自动递增版本号最后一位并同步到 `src/constants/version.js`、`app.js`、`index.html`、README、QA。
 - 自动提交、推送 `main`、等待部署成功、同步并推送 `bugfix`。
 - 最后给出下个对话的起始问题。
 
 ### 前端
-- 纯原生 JS，零框架依赖
-- 全局状态变量集中顶部声明
-- DOM 操作优先事件委托，避免全量 `innerHTML` 重建
-- 哈希对比跳过无变化渲染
+- Vue 3 Composition API + Pinia
+- 业务状态集中在 `src/stores/`
+- 路由使用 hash 模式，兼容 Retinbox 静态托管
+- 订单数据哈希对比，跳过无变化渲染
 - Toast 最多 3 个，超出自动移除
 - 确认对话框自动状态保持
 
@@ -770,6 +768,17 @@ Ctrl+Shift+R 强制刷新。如果仍不行，检查顶部栏版本号是否最�
 ---
 
 ## 变更记录
+
+### v3.0.0.19 (2026-08-04)
+- 修复：Retinbox 部署配置补充 `build: "build"`，本地 `npm run deploy` 可直接构建并上传 `dist`
+- 修复：恢复 `package-lock.json`，避免 GitHub Actions `npm ci` 因缺少 lock 文件失败
+- 修复：Vue 周月报字段对齐后端 `summary/range/perPerson` 返回结构
+- 修复：周月报接口增加管理员权限校验，并支持前端 offset 翻周/月
+- 修复：移动端 CSS 语法断裂，构建不再出现 CSS minify warning
+- 修复：订单列表新日期默认展开，不再因 `expandedDates` 未初始化而隐藏
+- 优化：Toast 使用 `textContent` 渲染消息，避免服务端错误文本被当作 HTML 注入
+- 优化：菜品保存不再从 DOM 反查输入框，直接保存 Pinia 中的当前菜品状态
+- 同步：版本号更新为 `v3.0.0.19`
 
 ### v3.0.0.18 (2026-08-01)
 - 新增：所有 API 响应增加 `code` 唯一错误码字段，可复制用于排查

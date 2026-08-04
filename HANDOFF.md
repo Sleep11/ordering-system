@@ -1,6 +1,6 @@
 # 多人在线点餐系统 — 下个对话交接文档
 
-> v3.0.0.18  |  2026-08-01  |  https://bawei.rth1.xyz
+> v3.0.0.19  |  2026-08-04  |  https://bawei.rth1.xyz
 
 ---
 
@@ -40,11 +40,11 @@ git push main
 
 **`rth-host.json`**（部署配置）：
 ```json
-{ "outdir": "dist", "site": "bawei" }
+{ "build": "build", "outdir": "dist", "site": "bawei" }
 ```
+- `build: "build"` — 本地 `npm run deploy` 和 Retinbox CLI 都会先执行 Vite 构建
 - `outdir: "dist"` — Vite 构建输出目录
 - `site: "bawei"` — 站点子域名，对应 `https://bawei.rth1.xyz`
-- 注意：**没有 `build` 字段**，因为已在 GitHub Actions 中显式执行 `npm run build`
 
 **`vite.config.js`**（构建配置）：
 - `closeBundle` 钩子自动复制 `api.node.js` / `auth.node.js` / `kv-adapter.node.js` / `restore.html` 到 `dist/`
@@ -66,7 +66,7 @@ steps:
 1. **正确性第一** — 数据安全 > 一致性 > 可维护性 > 性能 > 扩展性 > 开发效率 > 代码简洁度
 2. **改代码前先查源码、配置、日志**，不允许猜测或虚构，不确定就明确说明
 3. **每次改代码必须递增版本号**（四位 `x.y.z.n`），同步到 `Vue TopBar.vue`/`index.html`/`README.md`/`QA.md`
-4. **提交信息以版本号开头**，如 `v3.0.0.18: fix order list price`
+4. **提交信息以版本号开头**，如 `v3.0.0.19: fix vue retinbox build`
 5. **不提交** `bawei-kv.json`、`.env`、`node_modules`、`dist`、`.reasonix`
 6. **所有 API 响应必须有 `code` 唯一错误码**（格式 `CATEGORY-NNNN`），用户可复制排查
 7. **Retinbox 兼容性优先** — 不要建议其他平台，有问题先查 Retinbox 官方文档
@@ -217,6 +217,6 @@ rth/
 
 ## 当前状态与下一步
 
-- **状态**：Vue 3 迁移完成，Node.js 后端稳定运行，错误码体系已建立
+- **状态**：Vue 3 迁移完成，v3.0.0.19 已修复部署 build 配置、package-lock、报表字段/权限、CSS 移动端语法和本地烟测问题
 - **站点**：https://bawei.rth1.xyz/
 - **默认下一步**：用浏览器打开站点，管理员登录，测试完整流程（点餐→统计→订单列表→报表→菜品管理→用户管理）
